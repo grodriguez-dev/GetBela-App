@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+.logo-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px; /* Espacio entre el logo y el texto */
+}
+
+.logo-img {
+    max-width: 120px; /* Ajusta el tamaño según tu preferencia */
+    height: auto;
+    object-fit: contain;
+}
+
+.input-group {
+    position: relative; /* Importante para que el error sea absoluto respecto a este div */
+    margin-bottom: 30px; /* Espacio extra para acomodar el error sin deformar */
+}
+
+/* Estilo del input con error */
+.input-error {
+    border: 1px solid red !important;
+}
+
+/* El mensaje de error flotante */
+.error-message {
+    position: absolute;
+    left: 0;
+    bottom: -20px; /* Se posiciona debajo del input sin ocupar espacio real */
+    color: red;
+    font-size: 11px;
+    font-weight: 600;
+    z-index: 10;
+    white-space: nowrap; /* Evita que el texto salte de línea y deforme */
+    pointer-events: none;
+}
