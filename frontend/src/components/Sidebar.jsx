@@ -63,6 +63,9 @@ const Sidebar = () => {
             <Link to="/products" className="block text-purple-300">
               🧴 Productos
             </Link>
+            <Link to="/postview" className="block text-purple-300">
+              🛒 Venta
+            </Link>
           </>
         )}
       </nav>

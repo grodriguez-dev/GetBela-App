@@ -20,6 +20,7 @@ import HomeCatalog from "./pages/public/HomeCatalog";
 import ServiceDetail from "./pages/public/ServiceDetail";
 import AppointmentsList from "./pages/appointments/AppointmentsList";
 import BusinessProfileView from "./pages/public/BusinessProfileView";
+import PostView from "./pages/sales/PostView";
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -44,6 +45,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="/services" element={<ServiceList />} />
               <Route path="/products" element={<ProductList />} />
               <Route path="/appointments" element={<AppointmentsList />} />
+              <Route path="/postview" element={<PostView />} />
               <Route path="configuracion">
               <Route index element={<SettingsHub />} />
                 <Route path="business" element={<BusinessSettings />} />
