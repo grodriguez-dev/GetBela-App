@@ -465,4 +465,27 @@ class AppointmentController extends Controller
             'appointment' => $appointment
         ], 200);
     }
+
+    /**
+     * BÚSQUEDA PÚBLICA: Buscar citas por número de teléfono del cliente.
+     */
+    public function searchByPhone(Request $request)
+    {
+        $request->validate([
+            'phone' => 'required|string|max:20',
+        ]);
+
+        $appointments = Appointment::whereHas('client', function ($q) use ($request) {
+            $q->where('phone', $request->phone);
+        })
+            ->with(['service.business', 'service.employee', 'service.category', 'client', 'consumedProducts'])
+            ->orderBy('date', 'desc')
+            ->orderBy('start_time', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'appointments' => $appointments
+        ]);
+    }
 }

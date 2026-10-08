@@ -55,6 +55,9 @@ Route::prefix('public')->group(function () {
 
     // Ruta para obtener los datos del perfil público de un negocio o estilista
     Route::get('/business/{id}', [BusinessController::class, 'show']);
+
+    // Consulta pública de citas por teléfono
+    Route::get('/appointments/search', [AppointmentController::class, 'searchByPhone']);
 });
 
 /*
@@ -65,6 +68,20 @@ Route::prefix('public')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     
     // ====================================================================
+    // ====================================================================
+    //  0. ZONA EXCLUSIVA DEL SUPER ADMIN (role:admin)
+    // ====================================================================
+    Route::middleware('role:admin')->prefix('admin')->group(function () {
+        // CRUD de Categorías
+        Route::apiResource('categories', \App\Http\Controllers\admin\CategoryController::class);
+
+        // CRUD de Banners (Carrusel)
+        Route::apiResource('banners', \App\Http\Controllers\admin\BannerController::class);
+
+        // CRUD de Contacto
+        Route::apiResource('contacts', \App\Http\Controllers\admin\ContactController::class);
+    });
+
     //  1. ZONA EXCLUSIVA DEL DUEÑO (role:owner)
     // ====================================================================
     Route::middleware('role:owner')->group(function () {

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->foreignId('business_id')->nullable()->constrained()->cascadeOnDelete()->after('id');
-            $table->enum('role', ['super_admin', 'owner', 'employee', 'customer'])->default('owner')->after('password')->nullable();
+            $table->enum('role', ['admin', 'owner', 'employee', 'customer'])->default('owner')->after('password')->nullable();
         });
     }
 

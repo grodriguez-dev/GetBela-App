@@ -68,6 +68,7 @@ class DatabaseSeeder extends Seeder
             'business_id' => $business->id,
             'name' => 'Carlos Administrador',
             'email' => 'admin@getbela.com',
+            'role' => 'admin',
             'password' => Hash::make('password123'), // Contraseña fácil para pruebas
         ]);
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Service;
 use App\Models\Category;
+use App\Models\Banner;
 use Illuminate\Http\Request;
 
 class PublicHomeController extends Controller
@@ -61,23 +62,11 @@ class PublicHomeController extends Controller
      */
     public function getBanners()
     {
-        // Aquí puedes retornar los banners institucionales o de salones destacados
+        $banners = Banner::all(['id', 'image', 'link']);
+
         return response()->json([
             'success' => true,
-            'banners' => [
-                [
-                    'id' => 1,
-                    'title' => 'Salones Destacados en GetBela',
-                    'image_url' => '/storage/banners/banner-default-1.jpg', // Ruta de ejemplo
-                    'link' => '#'
-                ],
-                [
-                    'id' => 2,
-                    'title' => 'Estilistas Independientes',
-                    'image_url' => '/storage/banners/banner-default-2.jpg', // Ruta de ejemplo
-                    'link' => '#'
-                ]
-            ]
+            'banners' => $banners
         ], 200);
     }
 }

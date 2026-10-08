@@ -35,8 +35,8 @@ const MainLayout = ({ children }) => {
 
           {/* Enlaces de Navegación */}
           <div className="flex items-center gap-6 text-sm font-medium">
-            <a href="#conocenos" className="hover:text-purple-300 transition-colors hidden md:inline">Conócenos</a>
-            <a href="#contacto" className="hover:text-purple-300 transition-colors hidden md:inline">Contáctanos</a>
+            <a href="/consultar" className="hover:text-purple-300 transition-colors hidden md:inline">Consultar</a>
+            <a href="/contacto" className="hover:text-purple-300 transition-colors hidden md:inline">Contáctanos</a>
             <a href="/login" className="bg-purple-900 hover:bg-purple-800 border border-purple-700 px-4 py-1.5 rounded-lg transition-colors">Ingresar</a>
           </div>
 

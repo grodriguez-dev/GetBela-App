@@ -21,6 +21,11 @@ import ServiceDetail from "./pages/public/ServiceDetail";
 import AppointmentsList from "./pages/appointments/AppointmentsList";
 import BusinessProfileView from "./pages/public/BusinessProfileView";
 import PostView from "./pages/sales/PostView";
+import CategoriesList from './pages/admin/CategoriesList';
+import BannersList from './pages/admin/BannersList';
+import ContactList from './pages/admin/ContactList';
+import ContactPage from './pages/public/ContactPage';
+import ConsultPage from './pages/public/ConsultPage';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -34,6 +39,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="login" element={<Login />} />
               <Route path="register" element={<Register />} />
               <Route path="/" element={<HomeCatalog />} />
+              <Route path="contacto" element={<ContactPage />} />
+              <Route path="consultar" element={<ConsultPage />} />
               <Route path="servicio/:id" element={<ServiceDetail />} />
               <Route path="business/:id" element={<BusinessProfileView />} />
             </Route>
@@ -46,6 +53,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="/products" element={<ProductList />} />
               <Route path="/appointments" element={<AppointmentsList />} />
               <Route path="/postview" element={<PostView />} />
+              
+              {/* Rutas del Panel Super Admin */}
+              <Route path="admin/categories" element={<CategoriesList />} />
+              <Route path="admin/banners" element={<BannersList />} />
+              <Route path="admin/contacts" element={<ContactList />} />
+              
               <Route path="configuracion">
               <Route index element={<SettingsHub />} />
                 <Route path="business" element={<BusinessSettings />} />

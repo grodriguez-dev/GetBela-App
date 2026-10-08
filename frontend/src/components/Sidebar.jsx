@@ -48,6 +48,24 @@ const Sidebar = () => {
             <Link to="/dashboard" className="block">
               📊 Dashboard
             </Link>
+            
+            {/* Enlaces exclusivos para Super Admin */}
+            {user?.role === 'admin' && (
+              <>
+                <Link to="/admin/categories" className="block text-purple-300">
+                  🗂️ Categorías
+                </Link>
+                <Link to="/admin/banners" className="block text-purple-300">
+                  🖼️ Carrusel
+                </Link>
+                <Link to="/admin/contacts" className="block text-purple-300">
+                  📞 Contacto
+                </Link>
+                <div className="border-t border-purple-800 my-2"></div>
+              </>
+            )}
+            
+            {/* Enlaces para owner/employee */}
             <Link to="/appointments" className="block text-purple-300">
               📅 Citas
             </Link>

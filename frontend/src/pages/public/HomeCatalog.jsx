@@ -5,6 +5,11 @@ import { Sparkles, Scissors, Eye, Palette, Smile, HeartPulse } from "lucide-reac
 import { useSearch } from "../../context/SearchContext";
 import { Link } from "react-router-dom";
 import ServiceCard from "../../components/public/ServiceCard";
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Autoplay, Pagination, Navigation } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/pagination';
+import 'swiper/css/navigation';
 
 const HomeCatalog = () => {
   const { searchQuery } = useSearch();
@@ -73,26 +78,66 @@ const HomeCatalog = () => {
 
   return (
     <MainLayout>
-      {/* BANNER PUBLICITARIO */}
-      <section className="w-full bg-purple-900 relative shadow-inner">
-        <div className="w-full h-64 md:h-80 overflow-hidden flex items-center justify-center relative">
+      {/* CARRUSEL DE BANNERS */}
+      <section className="w-full bg-purple-900 relative">
+        <div className="w-full h-64 md:h-130 overflow-hidden relative">
           {banners.length > 0 ? (
-            <div className="w-full h-full relative">
-              <img 
-                src={banners[0].image_url.startsWith("http") ? banners[0].image_url : `http://localhost:8000${banners[0].image_url}`} 
-                alt={banners[0].title}
-                className="w-full h-full object-cover opacity-90"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent flex items-end p-6">
-                <h2 className="text-white text-2xl md:text-3xl font-bold drop-shadow-md">
-                  {banners[0].title}
-                </h2>
-              </div>
-            </div>
+            <Swiper
+              modules={[Autoplay, Pagination, Navigation]}
+              spaceBetween={0}
+              slidesPerView={1}
+              loop={banners.length > 1}
+              autoplay={banners.length > 1 ? { delay: 4000, disableOnInteraction: false } : false}
+              pagination={banners.length > 1 ? { clickable: true } : false}
+              navigation={banners.length > 1}
+              speed={800}
+              effect="slide"
+              className="h-full w-full"
+              lazy={{ enabled: true, loadPrevNext: true }}
+            >
+              {banners.map((banner) => {
+                const imageSrc = banner.image?.startsWith('http')
+                  ? banner.image
+                  : banner.image?.startsWith('/storage/')
+                    ? `http://localhost:8000${banner.image}`
+                    : banner.image;
+
+                const slideContent = (
+                  <img
+                    src={imageSrc}
+                    alt="Banner"
+                    className="w-full h-full object-contain bg-purple"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                );
+
+                return (
+                  <SwiperSlide key={banner.id}>
+                    {banner.link ? (
+                      <a
+                        href={banner.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-full h-full relative"
+                      >
+                        {slideContent}
+                      </a>
+                    ) : (
+                      <div className="w-full h-full relative">
+                        {slideContent}
+                      </div>
+                    )}
+                  </SwiperSlide>
+                );
+              })}
+            </Swiper>
           ) : (
-            <div className="text-purple-200 text-center p-6">
-              <h2 className="text-2xl md:text-3xl font-bold">Reserva tu estilo con los mejores profesionales</h2>
-              <p className="text-sm mt-2 text-purple-300">Salones y estilistas independientes a un solo clic</p>
+            <div className="h-full flex items-center justify-center text-purple-200 text-center p-6">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold">Reserva tu estilo con los mejores profesionales</h2>
+                <p className="text-sm mt-2 text-purple-300">Salones y estilistas independientes a un solo clic</p>
+              </div>
             </div>
           )}
         </div>
@@ -148,8 +193,9 @@ const HomeCatalog = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {services.map((service) => (
                 <ServiceCard
-                  service={service} 
-                  businessName={service.business.name} 
+                  key={service.id || service.slug || `${service.name}-${service.business?.id || "no-business"}`}
+                  service={service}
+                  businessName={service.business?.name || "Negocio"}
                 />
               ))}
             </div>
