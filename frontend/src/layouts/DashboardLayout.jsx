@@ -74,7 +74,7 @@ const DashboardLayout = () => {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* NAVBAR */}
-      <header className="h-16 bg-purple-950 flex items-center justify-between px-8 text-white shadow-md z-10">
+      <header className="h-16 bg-purple-950 flex items-center justify-between px-8 text-white shadow-md z-50 sticky top-0">
         <div className="font-bold text-xl">{businessName}</div>
 
         <div className="flex items-center space-x-4">
@@ -159,12 +159,14 @@ const DashboardLayout = () => {
 
             {dropdownOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg py-2 text-gray-800 z-50">
-                <Link
-                  to="/configuracion"
-                  className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100"
-                >
-                  <Settings size={16} /> Configuración
-                </Link>
+                {user?.role !== 'employee' && (
+                  <Link
+                    to="/configuracion"
+                    className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100"
+                  >
+                    <Settings size={16} /> Configuración
+                  </Link>
+                )}
                 <button
                   onClick={logout}
                   className="flex items-center gap-2 w-full px-4 py-2 text-red-600 hover:bg-gray-100"
@@ -178,10 +180,10 @@ const DashboardLayout = () => {
       </header>
 
       {/* CUERPO: Sidebar + Contenido */}
-      <div className="flex flex-1">
+      <div className="flex flex-1 min-h-0">
         <Sidebar />
 
-        <main className="flex-1 p-6 flex justify-center">
+        <main className="flex-1 p-6 flex justify-center overflow-y-auto">
           <Outlet />
         </main>
       </div>

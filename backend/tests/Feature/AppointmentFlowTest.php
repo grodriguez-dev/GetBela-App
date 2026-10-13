@@ -146,6 +146,58 @@ class AppointmentFlowTest extends TestCase
     }
 
     /** @test */
+    public function test_it_keeps_valid_today_appointments_as_pending_when_they_are_still_inside_the_business_hours()
+    {
+        $this->actingAs($this->user, 'sanctum');
+
+        $today = now()->format('Y-m-d');
+        $startTime = now()->copy()->addMinutes(30)->format('H:i:s');
+        $endTime = now()->copy()->addMinutes(90)->format('H:i:s');
+
+        $appointment = Appointment::create([
+            'business_id' => $this->business->id,
+            'service_id' => $this->service->id,
+            'client_id' => Client::factory()->create(['business_id' => $this->business->id])->id,
+            'date' => $today,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'status' => 'pending',
+            'total_price' => 40.00,
+        ]);
+
+        $response = $this->getJson('/api/appointments');
+
+        $response->assertStatus(200);
+        $this->assertSame('pending', $appointment->fresh()->status);
+        $response->assertJsonFragment([
+            'id' => $appointment->id,
+            'status' => 'pending',
+        ]);
+    }
+
+    /** @test */
+    public function test_it_rejects_same_day_appointments_in_the_past()
+    {
+        $this->actingAs($this->user, 'sanctum');
+
+        $payload = [
+            'business_id' => $this->business->id,
+            'service_id' => $this->service->id,
+            'client_name' => 'Cliente Pasado',
+            'client_phone' => '+584125555111',
+            'date' => now()->format('Y-m-d'),
+            'start_time' => now()->copy()->subMinutes(30)->format('H:i:s'),
+        ];
+
+        $response = $this->postJson('/api/appointments', $payload);
+
+        $response->assertStatus(422);
+        $response->assertJsonFragment([
+            'message' => 'La hora seleccionada ya pasó. Elige un horario futuro para hoy.',
+        ]);
+    }
+
+    /** @test */
     public function test_it_forces_the_first_shield_and_rejects_appointments_outside_business_hours()
     {
         // 1. Nos autenticamos como el administrador del salón
@@ -198,6 +250,41 @@ class AppointmentFlowTest extends TestCase
         // 2. Aserción de seguridad final: Verificar que NINGUNA de estas dos citas se guardó en la BD
         $this->assertDatabaseCount('appointments', 0);
 
+    }
+
+    /** @test */
+    public function test_it_accepts_sunday_business_hours_when_the_frontend_uses_zero_based_weekday()
+    {
+        $this->actingAs($this->user, 'sanctum');
+
+        BusinessHour::where('business_id', $this->business->id)
+            ->where('day_of_week', 7)
+            ->update([
+                'day_of_week' => 0,
+                'opening_time' => '08:00:00',
+                'closing_time' => '19:00:00',
+                'is_closed' => false,
+            ]);
+
+        $payload = [
+            'business_id' => $this->business->id,
+            'service_id' => $this->service->id,
+            'client_name' => 'Cliente Domingo',
+            'client_phone' => '+584125555999',
+            'date' => now()->next(Carbon::SUNDAY)->format('Y-m-d'),
+            'start_time' => '09:00:00',
+        ];
+
+        $response = $this->postJson('/api/appointments', $payload);
+
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('appointments', [
+            'business_id' => $this->business->id,
+            'service_id' => $this->service->id,
+            'start_time' => '09:00:00',
+            'end_time' => '10:00:00',
+            'status' => 'pending',
+        ]);
     }
 
     /** @test */
@@ -756,7 +843,7 @@ class AppointmentFlowTest extends TestCase
                 'client_name' => 'María Alejandra',
                 'client_phone' => '+584141112233',
                 'date' => now()->format('Y-m-d'),
-                'start_time' => '10:00:00',
+                'start_time' => now()->copy()->addHours(2)->format('H:i:s'),
             ]);
 
         // Debe responder 201 (Creado)

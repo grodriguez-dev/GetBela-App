@@ -8,7 +8,7 @@ const Sidebar = () => {
   const isSettings = location.pathname.startsWith("/configuracion");
 
   return (
-    <aside className="w-64 bg-purple-950 min-h-screen p-6 text-white">
+    <aside className="w-64 bg-purple-950 min-h-[calc(100vh-4rem)] p-6 text-white sticky top-16 self-start">
       {/* Visualización del Logo del Negocio */}
       {user?.business && (
         <div className="flex flex-col items-center mb-8">
@@ -69,12 +69,16 @@ const Sidebar = () => {
             <Link to="/appointments" className="block text-purple-300">
               📅 Citas
             </Link>
-            <Link to="/configuracion" className="block text-purple-300">
-              ⚙️ Configuración
-            </Link>
-            <Link to="/employees" className="block text-purple-300">
-              👔 Empleados
-            </Link>
+            {user?.role !== 'employee' && (
+              <Link to="/configuracion" className="block text-purple-300">
+                ⚙️ Configuración
+              </Link>
+            )}
+            {user?.role !== 'employee' && (
+              <Link to="/employees" className="block text-purple-300">
+                👔 Empleados
+              </Link>
+            )}
             <Link to="/services" className="block text-purple-300">
               💅 Servicios
             </Link>

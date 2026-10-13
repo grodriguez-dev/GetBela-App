@@ -8,8 +8,13 @@ const DAYS_OF_WEEK = [
   { id: 4, name: 'Jueves' },
   { id: 5, name: 'Viernes' },
   { id: 6, name: 'Sábado' },
-  { id: 0, name: 'Domingo' },
+  { id: 7, name: 'Domingo' },
 ];
+
+const normalizeDayOfWeek = (value) => {
+  const numericValue = Number(value);
+  return numericValue === 0 ? 7 : numericValue;
+};
 
 const BusinessHours = () => {
   const [schedule, setSchedule] = useState(
@@ -38,17 +43,18 @@ const BusinessHours = () => {
 
       if (hoursFromApi && Array.isArray(hoursFromApi) && hoursFromApi.length > 0) {
         const mappedData = DAYS_OF_WEEK.map((day) => {
-          const found = hoursFromApi.find((h) => Number(h.day_of_week) === Number(day.id));
+          const found = hoursFromApi.find((h) => normalizeDayOfWeek(h.day_of_week) === Number(day.id));
+
           return found
             ? {
-                day_of_week: day.id,
+                day_of_week: Number(day.id),
                 day_name: day.name,
                 opening_time: found.opening_time ? found.opening_time.substring(0, 5) : '08:00',
                 closing_time: found.closing_time ? found.closing_time.substring(0, 5) : '18:00',
                 is_closed: Boolean(found.is_closed),
               }
             : {
-                day_of_week: day.id,
+                day_of_week: Number(day.id),
                 day_name: day.name,
                 opening_time: '08:00',
                 closing_time: '18:00',

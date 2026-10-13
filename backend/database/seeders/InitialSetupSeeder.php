@@ -62,7 +62,7 @@ class InitialSetupSeeder extends Seeder
             'price' => 15.00,
         ]);
 
-        Service::facrory()->create([
+        Service::factory()->create([
             'business_id' => $business->id,
             'name' => 'Diseño y Depilación de Cejas',
             'description' => 'Perfilado personalizado según tu tipo de rostro y depilación con cera elástica.',

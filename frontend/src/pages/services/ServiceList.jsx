@@ -21,10 +21,14 @@ const ServiceList = () => {
           responseCategories.data.categories || responseCategories.data;
         setCategories(categoriesData);
 
-        const responseEmployees = await api.get("/api/employees");
-        const employeeData =
-          responseEmployees.data.employees || responseEmployees.data;
-        setEmployees(employeeData);
+        const responseEmployees = await api.get("/api/employees").catch(() => null);
+        if (responseEmployees?.data) {
+          const employeeData =
+            responseEmployees.data.employees || responseEmployees.data;
+          setEmployees(employeeData);
+        } else {
+          setEmployees([]);
+        }
 
         const response = await api.get("/api/products");
         const productsData = response.data.products || response.data;
@@ -151,8 +155,8 @@ const ServiceList = () => {
                 )}
               </td>
               <td className="p-4">{service.name}</td>
-              <td className="p-4">{service.category.name || "Sin categoría"}</td>
-              <td className="p-4">{service.employee.name || "Sin asignar"}</td>
+              <td className="p-4">{service.category?.name || "Sin categoría"}</td>
+              <td className="p-4">{service.employee?.name || "Sin asignar"}</td>
               <td className="p-4">${service.price}</td>
               <td className="p-4">{service.duration_minutes} min</td>
               <td className="p-4">

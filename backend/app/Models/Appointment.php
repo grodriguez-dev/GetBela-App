@@ -24,7 +24,9 @@ class Appointment extends Model
     ];
 
     protected $casts = [
-        'date' => 'date',
+        // Se serializa como fecha de calendario (YYYY-MM-DD), sin hora ni zona horaria,
+        // para evitar desfases de un día según la zona del navegador.
+        'date' => 'date:Y-m-d',
         'total_price' => 'decimal:2',
     ];
 

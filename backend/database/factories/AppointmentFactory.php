@@ -25,10 +25,12 @@ class AppointmentFactory extends Factory
 
         return [
             // 🏢 Relación al negocio multi-tenant
-            'business_id' => Business::factory(),
+            'business_id' => Business::query()->exists()
+                ? Business::query()->first()->id
+                : Business::factory()->create()->id,
 
             // 📦 Relación al servicio solicitado
-            'service_id' => Service::factory(),
+            'service_id' => Service::query()->exists() ? Service::query()->first()->id : Service::factory()->create()->id,
 
             // 📅 Formato de fecha consistente (Y-m-d 00:00:00) como maneja tu BD
             'date' => $this->faker->dateTimeBetween('now', '+1 month')->format('Y-m-d 00:00:00'),
@@ -38,7 +40,7 @@ class AppointmentFactory extends Factory
             'end_time' => sprintf('%02d:00:00', $startHour + 1), // Por defecto asume 1 hora de duración
 
             // 👤 Datos del cliente
-            'client_id' => Client::factory(),
+            'client_id' => Client::query()->exists() ? Client::query()->first()->id : Client::factory()->create()->id,
 
             // ⚙️ Estado por defecto
             'status' => 'pending',

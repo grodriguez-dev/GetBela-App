@@ -23,26 +23,34 @@ class AppointmentController extends Controller
     public function index()
     {
         $businessId = Auth::user()->business_id;
-        $now = Carbon::now(); // Fecha y hora actual exacta
+        $now = Carbon::now();
 
-        // 1. AUTO-CANCELAR: Si la cita es de un día anterior o, siendo hoy, ya pasó su hora de fin 
-        // y sigue pendiente o confirmada, la pasamos automáticamente a 'cancelled'.
-        Appointment::where('business_id', $businessId)
+        // 1. AUTO-CANCELAR únicamente si la cita ya venció realmente en tiempo real.
+        $appointmentsToCancel = Appointment::where('business_id', $businessId)
             ->whereIn('status', ['pending', 'confirmed'])
-            ->where(function ($query) use ($now) {
-                $query->whereDate('date', '<', $now->toDateString())
-                    ->orWhere(function ($q) use ($now) {
-                        $q->whereDate('date', '=', $now->toDateString())
-                            ->where('end_time', '<', $now->toTimeString());
-                    });
-            })
-            ->update(['status' => 'cancelled']);
+            ->get()
+            ->filter(function ($appointment) use ($now) {
+                if (!$appointment->date || !$appointment->end_time) {
+                    return false;
+                }
+
+                $appointmentDate = Carbon::parse($appointment->date->format('Y-m-d'));
+                $appointmentEnd = Carbon::parse($appointmentDate->format('Y-m-d') . ' ' . $appointment->end_time);
+
+                return $appointmentDate->lt($now->copy()->startOfDay())
+                    || ($appointmentDate->isSameDay($now) && $appointmentEnd->lt($now));
+            });
+
+        foreach ($appointmentsToCancel as $appointment) {
+            $appointment->update(['status' => 'cancelled']);
+        }
 
         // 2. RETORNAR EL LISTADO ACTUALIZADO
         $appointments = Appointment::where('business_id', $businessId)
             ->with(['service.employee', 'client', 'consumedProducts'])
-            ->orderBy('date', 'asc')
-            ->orderBy('start_time', 'asc')
+            ->orderBy('created_at', 'desc')
+            ->orderBy('date', 'desc')
+            ->orderBy('start_time', 'desc')
             ->get();
             
         return response()->json($appointments, 200);
@@ -83,6 +91,16 @@ class AppointmentController extends Controller
         $startTime = Carbon::parse($request->date . ' ' . $request->start_time);
         $duration = $service->duration_minutes ?? 60;
         $endTime = $startTime->copy()->addMinutes($duration);
+        $now = Carbon::now();
+
+        if ($startTime->lt($now->copy()->subMinutes(15)) && Carbon::parse($request->date)->isToday()) {
+            return response()->json([
+                'message' => 'La hora seleccionada ya pasó. Elige un horario futuro para hoy.',
+                'errors' => [
+                    'start_time' => ['La cita no puede crearse en un horario ya vencido.']
+                ]
+            ], 422);
+        }
 
         // Formateamos los strings limpios que se guardarán en las columnas TIME de la BD
         $requestedStartTime = $startTime->format('H:i:s');
@@ -90,21 +108,23 @@ class AppointmentController extends Controller
 
         // 2. ESCUDO 1: Validar jornada laboral
         $dayOfWeek = Carbon::parse($request->date)->dayOfWeekIso;
+        $possibleDayValues = [$dayOfWeek];
+
+        if ($dayOfWeek === 7) {
+            $possibleDayValues[] = 0;
+        }
+
+        if ($dayOfWeek === 0) {
+            $possibleDayValues[] = 7;
+        }
+
         $businessHour = BusinessHour::where('business_id', $businessId)
-            ->where('day_of_week', $dayOfWeek)
+            ->whereIn('day_of_week', array_values(array_unique($possibleDayValues)))
+            ->orderByRaw('CASE WHEN day_of_week = ? THEN 0 ELSE 1 END', [$dayOfWeek])
             ->first();
 
         if (!$businessHour || $businessHour->is_closed) {
             return response()->json(['message' => 'El negocio se encuentra cerrado el día solicitado.'], 422);
-        }
-
-        if ($requestedStartTime < $businessHour->opening_time || $calculatedEndTime > $businessHour->closing_time) {
-            return response()->json([
-                'message' => 'La información proporcionada no es válida.',
-                'errors' => [
-                    'start_time' => ['La cita excede las horas de atención operativas del salón.']
-                ]
-            ], 422);
         }
 
         // Creamos instancias Carbon de los límites usando el mismo día de la cita
@@ -112,6 +132,7 @@ class AppointmentController extends Controller
         $closeTime = Carbon::parse($request->date . ' ' . $businessHour->closing_time);
 
         // Comparación matemática cronológica estricta (detecta cruces de día y medianoche)
+        // Permitir que termine exactamente a la hora de cierre
         if ($startTime->lt($openTime) || $endTime->gt($closeTime)) {
             return response()->json(['message' => 'La cita se sale del horario de atención del establecimiento.'], 422);
         }
@@ -431,7 +452,7 @@ class AppointmentController extends Controller
      */
     public function updateStatus(Request $request, $id)
     {
-        $request->validate(['status' => 'required|in:pending,confirmed,cancelled,completed,no_show']);
+        $request->validate(['status' => 'required|in:pending,confirmed,cancelled,completed,no_show,in_progress']);
 
         $user = Auth::user();
 

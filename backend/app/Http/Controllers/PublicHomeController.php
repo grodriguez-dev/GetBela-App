@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Service;
 use App\Models\Category;
 use App\Models\Banner;
+use App\Models\Contact;
 use Illuminate\Http\Request;
 
 class PublicHomeController extends Controller
@@ -67,6 +68,19 @@ class PublicHomeController extends Controller
         return response()->json([
             'success' => true,
             'banners' => $banners
+        ], 200);
+    }
+
+    /**
+     * 4. Obtener los datos de contacto públicos (para la página de contacto).
+     */
+    public function getContacts()
+    {
+        $contacts = Contact::all(['id', 'name', 'icon', 'url']);
+
+        return response()->json([
+            'success' => true,
+            'contacts' => $contacts
         ], 200);
     }
 }

@@ -26,6 +26,8 @@ import BannersList from './pages/admin/BannersList';
 import ContactList from './pages/admin/ContactList';
 import ContactPage from './pages/public/ContactPage';
 import ConsultPage from './pages/public/ConsultPage';
+import Terms from './pages/public/Terms';
+import Privacy from './pages/public/Privacy';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -41,6 +43,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="/" element={<HomeCatalog />} />
               <Route path="contacto" element={<ContactPage />} />
               <Route path="consultar" element={<ConsultPage />} />
+              <Route path="terminos" element={<Terms />} />
+              <Route path="politicas" element={<Privacy />} />
               <Route path="servicio/:id" element={<ServiceDetail />} />
               <Route path="business/:id" element={<BusinessProfileView />} />
             </Route>

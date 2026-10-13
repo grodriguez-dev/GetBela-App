@@ -34,7 +34,7 @@ class BusinessHourController extends Controller
         // 1. Validar únicamente el formato y que sean requeridos si no están cerrados
         $request->validate([
             'hours' => 'required|array|min:1|max:7',
-            'hours.*.day_of_week' => 'required|integer|min:0|max:6',
+            'hours.*.day_of_week' => 'required|integer|min:0|max:7',
             'hours.*.is_closed' => 'required|boolean',
             'hours.*.opening_time' => 'required_if:hours.*.is_closed,false|nullable|date_format:H:i',
             'hours.*.closing_time' => 'required_if:hours.*.is_closed,false|nullable|date_format:H:i',
@@ -43,6 +43,11 @@ class BusinessHourController extends Controller
         // 2. Procesar y comparar directamente como texto/horas en PHP puro
         DB::transaction(function () use ($request, $businessId) {
             foreach ($request->hours as $hourData) {
+                $normalizedDay = (int) $hourData['day_of_week'];
+                if ($normalizedDay === 0) {
+                    $normalizedDay = 7;
+                }
+
                 // Si el día no está cerrado, validamos lógicamente que el cierre sea mayor a la apertura
                 if (!filter_var($hourData['is_closed'], FILTER_VALIDATE_BOOLEAN)) {
                     if ($hourData['closing_time'] <= $hourData['opening_time']) {
@@ -55,7 +60,7 @@ class BusinessHourController extends Controller
                 BusinessHour::updateOrCreate(
                     [
                         'business_id' => $businessId,
-                        'day_of_week' => $hourData['day_of_week']
+                        'day_of_week' => $normalizedDay
                     ],
                     [
                         'opening_time' => $hourData['is_closed'] ? '00:00:00' : $hourData['opening_time'] . ':00',

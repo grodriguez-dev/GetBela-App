@@ -24,12 +24,14 @@ class ServiceFactory extends Factory
 
         return [
             // 🏢 Conexión directa al negocio multi-tenant
-            'business_id' => Business::factory(),
+            'business_id' => Business::query()->exists()
+                ? Business::query()->first()->id
+                : Business::factory()->create()->id,
 
             'category_id' => Category::inRandomOrder()->first()?->id ?? Category::factory(),
 
             // 💈 Relación al empleado/estilista asignado
-            'employee_id' => Employee::factory(),
+            'employee_id' => Employee::query()->exists() ? Employee::query()->first()->id : Employee::factory()->create()->id,
             
             // 🏷️ Nombre del servicio aleatorio de la lista
             'name' => $this->faker->randomElement($services),

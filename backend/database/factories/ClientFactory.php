@@ -19,9 +19,11 @@ class ClientFactory extends Factory
     public function definition(): array
     {
         return [
-            'business_id' => Business::factory(), // Crea un negocio por defecto si no se le pasa uno
+            'business_id' => Business::query()->exists()
+                ? Business::query()->first()->id
+                : Business::factory()->create()->id,
             'name' => $this->faker->name(),
-            'phone' => $this->faker->e164PhoneNumber(), // Genera un teléfono limpio tipo +58...
+            'phone' => $this->faker->e164PhoneNumber(),
         ];
     }
 }

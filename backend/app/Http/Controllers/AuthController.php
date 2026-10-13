@@ -53,21 +53,23 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        // 1. Validar las credenciales de entrada
         $request->validate([
             'email' => 'required|string|email',
             'password' => 'required|string',
         ]);
 
-        // 2. Intentar autenticar al usuario
-        if (!Auth::attempt($request->only('email', 'password'))) {
+        $email = strtolower(trim($request->input('email')));
+        $password = trim((string) $request->input('password'));
+
+        $user = User::whereRaw('LOWER(email) = ?', [$email])->first();
+
+        if (!$user || !Auth::guard('web')->attempt(['email' => $email, 'password' => $password])) {
             return response()->json([
                 'message' => 'Credenciales incorrectas'
             ], 401);
         }
 
-        // 3. Obtener el usuario autenticado
-        $user = User::where('email', $request->email)->firstOrFail();
+        $user = User::whereRaw('LOWER(email) = ?', [$email])->firstOrFail();
 
         $user->load('business');
 

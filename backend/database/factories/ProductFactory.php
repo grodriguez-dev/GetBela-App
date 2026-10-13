@@ -19,14 +19,16 @@ class ProductFactory extends Factory
     public function definition(): array
     {
         return [
-            'business_id' => Business::factory(),
+            'business_id' => Business::query()->exists()
+                ? Business::query()->first()->id
+                : Business::factory()->create()->id,
             'name' => $this->faker->randomElement([
-                'Shampoo Matizador Kerastase', 'Tinte Igora Royal 7-77', 'Olaplex N3', 
+                'Shampoo Matizador Kerastase', 'Tinte Igora Royal 7-77', 'Olaplex N3',
                 'Aceite de Argán Moroccanoil', 'Polvo Decolorante Schwarzkopf', 'Crema Hidratante Loreal'
             ]) . ' ' . $this->faker->unique()->numberBetween(100, 999),
-            'stock_current' => $this->faker->numberBetween(10, 30), // <-- Corregido
-            'sale_price' => $this->faker->randomFloat(2, 15, 80),    // <-- Corregido
-            'type' => $this->faker->randomElement(['uso_interno', 'venta_publico']), // <-- Agregado
+            'stock_current' => $this->faker->numberBetween(10, 30),
+            'sale_price' => $this->faker->randomFloat(2, 15, 80),
+            'type' => $this->faker->randomElement(['uso_interno', 'venta_publico']),
         ];
     }
 }

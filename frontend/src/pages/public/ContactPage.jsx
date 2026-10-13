@@ -30,7 +30,7 @@ const ContactPage = () => {
 
   const fetchContacts = async () => {
     try {
-      const res = await api.get("/api/admin/contacts");
+      const res = await api.get("/api/public/contacts");
       setContacts(res.data.contacts || []);
     } catch (error) {
       console.error("Error al cargar datos de contacto:", error);

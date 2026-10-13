@@ -12,6 +12,7 @@ const Register = () => {
   const [strength, setStrength] = useState(0);
   const [showBusinessSetup, setShowBusinessSetup] = useState(false); 
   const [registeredData, setRegisteredData] = useState(null);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -64,7 +65,7 @@ const Register = () => {
         description: "",
         address: "",
         phone: "",
-        logo: ""
+        logo: null
       });
       setShowBusinessSetup(true);
     } catch (error) {
@@ -247,7 +248,40 @@ const Register = () => {
             {errors.modality && <span className="error-message">{errors.modality[0]}</span>}
           </div>
 
-          <button type="submit" className="w-full bg-purple-950 text-white font-bold py-3 rounded-xl">
+          <label className="flex items-start gap-2 text-sm text-gray-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              className="mt-1 w-4 h-4 accent-purple-950 cursor-pointer"
+            />
+            <span>
+              Acepto los{" "}
+              <Link
+                to="/terminos"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-purple-950 font-semibold hover:underline"
+              >
+                Términos
+              </Link>{" "}
+              y las{" "}
+              <Link
+                to="/politicas"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-purple-950 font-semibold hover:underline"
+              >
+                Políticas
+              </Link>
+            </span>
+          </label>
+
+          <button
+            type="submit"
+            disabled={!acceptedTerms}
+            className="w-full bg-purple-950 text-white font-bold py-3 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             Crear cuenta
           </button>
         </form>

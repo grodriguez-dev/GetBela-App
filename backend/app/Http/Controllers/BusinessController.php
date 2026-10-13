@@ -38,9 +38,21 @@ class BusinessController extends Controller
             'logo'        => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
 
-        $slug = Str::slug($request->name);
-
-        $business = $request->user()->business;
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'No autenticado'], 401);
+        }
+        $business = $user->business;
+        if (!$business && $user->business_id) {
+            $business = Business::find($user->business_id);
+        }
+        if (!$business && $user->business_id) {
+            $business = Business::where('id', $user->business_id)->first();
+        }
+        if (!$business) {
+            return response()->json(['message' => 'Negocio no encontrado'], 404);
+        }
+        $slug = Str::slug($request->name ?? $business->name ?? 'business');
 
         // 2. Preparar los datos
         // Usamos all() o except para capturar todos los campos enviados

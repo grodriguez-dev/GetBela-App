@@ -91,8 +91,62 @@ class FinanceController extends Controller
             ->orderBy('total_revenue', 'desc')
             ->get();
 
+        // 5.1 TOTAL DE CITAS COMPLETADAS EN EL PERÍODO
+        $completedAppointments = Appointment::where('business_id', $businessId)
+            ->where('status', 'completed')
+            ->whereBetween('date', [$startStr, $endStr])
+            ->count();
+
         // 6. MATEMÁTICA GLOBAL
         $totalGrossEarned = floatval($earningsServices) + floatval($earningsSales);
+
+        // 7. LÍNEA DE TIEMPO DE INGRESOS (para gráficas de coordenadas)
+        //    - Períodos day/week/month  => agrupación diaria
+        //    - Períodos year/all        => agrupación mensual
+        $monthlyGranularity = in_array($period, ['year', 'all']);
+
+        $servicesByDay = Appointment::where('business_id', $businessId)
+            ->where('status', 'completed')
+            ->whereBetween('date', [$startStr, $endStr])
+            ->select(DB::raw('DATE(date) as day'), DB::raw('SUM(total_price) as total'))
+            ->groupBy('day')
+            ->pluck('total', 'day');
+
+        $salesByDay = Sale::where('business_id', $businessId)
+            ->whereBetween('created_at', [$startStr, $endStr])
+            ->select(DB::raw('DATE(created_at) as day'), DB::raw('SUM(total_price) as total'))
+            ->groupBy('day')
+            ->pluck('total', 'day');
+
+        $revenueTimeline = [];
+        $cursor = Carbon::parse($startStr);
+        $cursorEnd = Carbon::parse($endStr);
+
+        if ($monthlyGranularity) {
+            $cursor = $cursor->startOfMonth();
+            $cursorEnd = $cursorEnd->startOfMonth();
+        } else {
+            $cursor = $cursor->startOfDay();
+            $cursorEnd = $cursorEnd->startOfDay();
+        }
+
+        while ($cursor->lte($cursorEnd)) {
+            $key = $monthlyGranularity ? $cursor->format('Y-m') : $cursor->format('Y-m-d');
+            $servicesRevenue = floatval($servicesByDay[$key] ?? 0);
+            $salesRevenue = floatval($salesByDay[$key] ?? 0);
+
+            $revenueTimeline[] = [
+                'label' => $monthlyGranularity
+                    ? $cursor->locale('es')->isoFormat('MMM YYYY')
+                    : $cursor->locale('es')->isoFormat('D MMM'),
+                'date' => $cursor->format('Y-m-d'),
+                'services_revenue' => $servicesRevenue,
+                'sales_revenue' => $salesRevenue,
+                'total_revenue' => round($servicesRevenue + $salesRevenue, 2),
+            ];
+
+            $monthlyGranularity ? $cursor->addMonth() : $cursor->addDay();
+        }
 
         return response()->json([
             'message' => 'Métricas financieras unificadas recuperadas con éxito.',
@@ -106,9 +160,14 @@ class FinanceController extends Controller
                 'revenue_from_services' => floatval($earningsServices), // Dinero por Citas
                 'revenue_from_vitrina' => floatval($earningsSales),    // Dinero por Productos
                 'total_projected_services' => floatval($earningsProjected),
+                'completed_appointments' => intval($completedAppointments),
+                'average_ticket' => $completedAppointments > 0
+                    ? round($totalGrossEarned / $completedAppointments, 2)
+                    : 0,
             ],
             'performance_by_staff' => $staffPerformance,
-            'top_products_sold' => $topProductsSold
+            'top_products_sold' => $topProductsSold,
+            'revenue_timeline' => $revenueTimeline
         ], 200);
     }
 }

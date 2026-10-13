@@ -13,7 +13,7 @@ const BusinessForm = ({
   errors = {},
 }) => {
   const [formData, setFormData] = useState(initialData);
-  const [preview, setPreview] = useState(initialData.logo);
+  const [preview, setPreview] = useState(initialData.logo || null);
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
@@ -36,18 +36,20 @@ const BusinessForm = ({
     e.preventDefault();
     const data = new FormData();
     Object.keys(formData).forEach((key) => {
-      if (formData[key] !== null) {
-        if (key === "logo") {
-          // SI Y SOLO SI es un archivo nuevo, lo enviamos
-          if (formData.logo instanceof File) {
-            data.append("logo", formData.logo);
-          }
-          // Si no es un File, NO lo añadimos al FormData.
-          // Así Laravel no tiene nada que validar en ese campo y no dará error 422.
-        } else if (formData[key] !== null) {
-          data.append(key, formData[key]);
-        }
+      if (formData[key] === null || formData[key] === undefined) {
+        return;
       }
+      if (key === "logo") {
+        if (formData.logo instanceof File) {
+          data.append("logo", formData.logo);
+        }
+        return;
+      }
+      const val = formData[key];
+      if (typeof val === "string" && val.trim() === "") {
+        return;
+      }
+      data.append(key, val);
     });
 
     onSubmit(data);
@@ -63,18 +65,21 @@ const BusinessForm = ({
             <img
               src={
                 formData.logo instanceof File
-                  ? URL.createObjectURL(formData.logo) // 1. Si el usuario eligió un archivo nuevo
+                  ? URL.createObjectURL(formData.logo)
                   : formData.logo &&
                       typeof formData.logo === "string" &&
+                      formData.logo.trim() !== "" &&
                       !formData.logo.startsWith("http")
-                    ? `http://localhost:8000/storage/${formData.logo}` // 2. Si es la ruta guardada en BD
-                    : formData.logo // 3. Si es una URL completa externa
+                    ? `http://localhost:8000/storage/${formData.logo}`
+                    : formData.logo && typeof formData.logo === "string" && formData.logo.trim() !== ""
+                      ? formData.logo
+                      : undefined
               }
               className="w-full h-full object-cover"
               style={{
                 display:
-                  preview ||
-                  (formData.logo && typeof formData.logo === "string")
+                  (formData.logo instanceof File) ||
+                  (formData.logo && typeof formData.logo === "string" && formData.logo.trim() !== "")
                     ? "block"
                     : "none",
               }}

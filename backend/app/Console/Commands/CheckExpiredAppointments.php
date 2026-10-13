@@ -16,27 +16,39 @@ class CheckExpiredAppointments extends Command
     {
         $now = Carbon::now();
         $todayStr = $now->format('Y-m-d');
-        $timeStr = $now->format('H:i:s');
 
         // -----------------------------------------------------------------
         // REGLA 1: Tolerancia de 15 minutos para iniciar o cancelar
         // -----------------------------------------------------------------
-        // Buscamos citas pendientes de hoy que debieron empezar hace más de 15 minutos
-        $fifteenMinutesAgo = $now->copy()->subMinutes(15)->format('H:i:s');
+        $fifteenMinutesAgo = $now->copy()->subMinutes(15);
 
         Appointment::where('status', 'pending')
             ->where('date', $todayStr)
-            ->where('start_time', '<=', $fifteenMinutesAgo)
-            ->update(['status' => 'cancelled', 'notes' => 'Cancelada automáticamente: El cliente no se presentó tras 15 min de tolerancia.']);
+            ->get()
+            ->each(function ($appointment) use ($fifteenMinutesAgo) {
+                $start = Carbon::parse($appointment->date->format('Y-m-d') . ' ' . $appointment->start_time);
+
+                if ($start->lte($fifteenMinutesAgo)) {
+                    $appointment->update([
+                        'status' => 'cancelled',
+                        'notes' => 'Cancelada automáticamente: El cliente no se presentó tras 15 min de tolerancia.'
+                    ]);
+                }
+            });
 
         // -----------------------------------------------------------------
         // REGLA 2: Pasar a estado "Excedida" en el sistema de tiempo
         // -----------------------------------------------------------------
-        // Citas en progreso cuya hora de finalización ya pasó
         Appointment::where('status', 'in_progress')
             ->where('date', $todayStr)
-            ->where('end_time', '<', $timeStr)
-            ->update(['status' => 'cancelled']); // Nota: En el frontend pintaremos visualmente como "Excedida en Rojo" cualquier cita 'in_progress' cuya hora ya venció.
+            ->get()
+            ->each(function ($appointment) use ($now) {
+                $end = Carbon::parse($appointment->date->format('Y-m-d') . ' ' . $appointment->end_time);
+
+                if ($end->lt($now)) {
+                    $appointment->update(['status' => 'cancelled']);
+                }
+            });
 
         $this->info('Estados de citas actualizados correctamente.');
     }

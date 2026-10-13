@@ -12,12 +12,21 @@ import {
   X,
 } from "lucide-react";
 
+// Devuelve la fecha en formato YYYY-MM-DD usando la zona horaria LOCAL del navegador.
+// Evita el bug de toISOString(), que convierte a UTC y puede adelantar un día.
+export const getLocalDateString = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const AppointmentForm = ({ isOpen, onClose, service }) => {
   // 1. Estados para los campos que el usuario llenará
   const [formData, setFormData] = useState({
     client_name: "",
     client_phone: "",
-    date: "",
+    date: getLocalDateString(),
     start_time: "",
     notes: "", // <--- Nuevo campo para comentarios/notas
   });
@@ -216,7 +225,7 @@ const AppointmentForm = ({ isOpen, onClose, service }) => {
                 type="date"
                 name="date"
                 required
-                min={new Date().toISOString().split("T")[0]}
+                min={getLocalDateString()}
                 value={formData.date}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:border-purple-900 font-medium"

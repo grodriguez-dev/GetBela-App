@@ -20,7 +20,9 @@ class EmployeeFactory extends Factory
     public function definition(): array
     {
         return [
-            'business_id' => Business::factory(),
+            'business_id' => Business::query()->exists()
+                ? Business::query()->first()->id
+                : Business::factory()->create()->id,
             'user_id' => null,
             'name' => $this->faker->name(),
             'specialty' => $this->faker->randomElement(['Estilista Principal', 'Manicurista', 'Colorista Expert', 'Barbero']),

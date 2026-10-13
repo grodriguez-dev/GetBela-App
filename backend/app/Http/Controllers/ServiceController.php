@@ -17,6 +17,7 @@ class ServiceController extends Controller
         // Cargamos los servicios con su receta de productos asociada
         $services = Service::where('business_id', Auth::user()->business_id)
             ->with('category', 'employee', 'products')
+            ->orderBy('name')
             ->get();
 
         return response()->json($services, 200);
@@ -57,9 +58,11 @@ class ServiceController extends Controller
         $service = Service::create($data);
 
         // Si se enviaron productos para la receta, los vinculamos en la tabla intermedia
-        if ($request->has('products')) {
+        if ($request->has('products') && is_array($request->products)) {
             foreach ($request->products as $prod) {
-                $service->products()->attach($prod['id'], ['quantity_default' => $prod['quantity']]);
+                if (isset($prod['id']) && isset($prod['quantity'])) {
+                    $service->products()->attach($prod['id'], ['quantity_default' => $prod['quantity']]);
+                }
             }
         }
 
