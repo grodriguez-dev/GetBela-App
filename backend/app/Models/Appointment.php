@@ -14,6 +14,7 @@ class Appointment extends Model
     protected $fillable = [
         'business_id',
         'service_id',
+        'employee_id',
         'client_id',
         'date',
         'start_time',
@@ -64,4 +65,8 @@ class Appointment extends Model
         return $this->belongsTo(Client::class);
     }
 
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
+    }
 }

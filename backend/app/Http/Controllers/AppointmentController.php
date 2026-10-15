@@ -174,6 +174,47 @@ class AppointmentController extends Controller
         }
 
         if ($overlapping) {
+            $employee = null;
+            $conflictEnd = null;
+            $conflict = null;
+            foreach ($existingAppointments as $existing) {
+                $es = Carbon::parse($request->date . ' ' . $existing->start_time);
+                $ee = Carbon::parse($request->date . ' ' . $existing->end_time);
+                if (($startTime->gte($es) && $startTime->lt($ee)) ||
+                    ($endTime->gt($es) && $endTime->lte($ee)) ||
+                    ($startTime->lte($es) && $endTime->gte($ee))) {
+                    $conflict = $existing;
+                    $conflictEnd = $ee;
+                    break;
+                }
+            }
+            if ($employeeId) {
+                $employee = Employee::find($employeeId);
+            }
+            if (!$employee && $conflict) {
+                if ($conflict->employee_id) {
+                    $employee = Employee::find($conflict->employee_id);
+                } elseif ($conflict->service_id) {
+                    $svc = Service::find($conflict->service_id);
+                    if ($svc && $svc->employee_id) {
+                        $employee = Employee::find($svc->employee_id);
+                    }
+                }
+            }
+            if (!$employee && $service->employee_id) {
+                $employee = Employee::find($service->employee_id);
+            }
+            $availableAt = $conflictEnd ? $conflictEnd->copy()->addMinutes(5)->format('H:i') : null;
+            $empName = $employee->name ?? 'El empleado';
+            $msg = $availableAt
+                ? "El empleado {$empName} está ocupado. Estará disponible a las {$availableAt}."
+                : "El empleado {$empName} está ocupado en ese rango horario.";
+            return response()->json([
+                'message' => $msg
+            ], 422);
+        }
+
+        if ($overlapping) {
             return response()->json(['message' => 'El horario solicitado o la especialista se encuentra ocupada en ese rango de tiempo.'], 422);
         }
 
