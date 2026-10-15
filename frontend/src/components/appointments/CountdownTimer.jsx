@@ -15,15 +15,23 @@ const CountdownTimer = ({ endTime }) => {
       const diff = targetTime - now;
 
       if (diff <= 0) {
+        const elapsedMs = Math.abs(diff);
+        const diffMinutes = Math.floor(elapsedMs / 1000 / 60);
+        const diffSecs = Math.floor((elapsedMs / 1000) % 60);
+
         setIsExpired(true);
-        setTimeLeft("Tiempo cumplido");
+        setTimeLeft(
+          `+${diffMinutes} min ${diffSecs < 10 ? "0" : ""}${diffSecs} seg`,
+        );
         return;
       }
 
       const diffMinutes = Math.floor(diff / 1000 / 60);
       const diffSecs = Math.floor((diff / 1000) % 60);
 
-      setTimeLeft(`${diffMinutes} min ${diffSecs < 10 ? '0' : ''}${diffSecs} seg`);
+      setTimeLeft(
+        `${diffMinutes} min ${diffSecs < 10 ? "0" : ""}${diffSecs} seg`,
+      );
     };
 
     calculateTimeRemaining();
@@ -33,11 +41,17 @@ const CountdownTimer = ({ endTime }) => {
   }, [endTime]);
 
   return (
-    <div className={`text-xs font-bold px-3 py-1.5 rounded-xl border flex items-center gap-1.5 ${
-      isExpired ? 'bg-red-50 text-red-700 border-red-200' : 'bg-blue-50 text-blue-700 border-blue-200'
-    }`}>
+    <div
+      className={`text-xs font-bold px-3 py-1.5 rounded-xl border flex items-center gap-1.5 ${
+        isExpired
+          ? "bg-red-50 text-red-700 border-red-200"
+          : "bg-blue-50 text-blue-700 border-blue-200"
+      }`}
+    >
       <Clock className="w-3.5 h-3.5 animate-spin" />
-      <span>{isExpired ? "¡Tiempo finalizado!" : `Restan: ${timeLeft}`}</span>
+      <span>
+        {isExpired ? `Tiempo excedido: ${timeLeft}` : `Restan: ${timeLeft}`}
+      </span>
     </div>
   );
 };

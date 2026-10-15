@@ -138,15 +138,20 @@ class AppointmentController extends Controller
         }
 
         // 3. ESCUDO 2: Algoritmo Avanzado Anti-Solapamiento (Inmune a Drivers de BD)
-        $existingAppointments = Appointment::withoutGlobalScopes() // <--- ¡AÑADE ESTA LÍNEA AQUÍ!
-        ->where('service_id', $service->id)
+        $employeeId = $service->employee_id;
+        $serviceId = $service->id;
+
+        $existingAppointments = Appointment::withoutGlobalScopes()
         ->where('business_id', $businessId)
         ->whereDate('date', $request->date)
         ->whereIn('status', ['pending', 'confirmed', 'in_progress'])
-        ->where(function($query) use ($request) {
-            if ($request->service_id) {
-                $query->where('service_id', $request->service_id);
-            }
+        ->when($employeeId, function ($query) use ($employeeId, $serviceId) {
+            $query->where(function ($q) use ($employeeId, $serviceId) {
+                $q->where('employee_id', $employeeId)
+                  ->orWhere('service_id', $serviceId);
+            });
+        }, function ($query) use ($serviceId) {
+            $query->where('service_id', $serviceId);
         })
         ->get();
 
@@ -201,6 +206,7 @@ class AppointmentController extends Controller
         $appointment = Appointment::create([
             'business_id' => $businessId,
             'service_id' => $request->service_id,
+            'employee_id' => $service->employee_id,
             'client_id'   => $client->id,
             'date' => $request->date,
             'start_time' => $requestedStartTime,
@@ -271,8 +277,8 @@ class AppointmentController extends Controller
         $date       = $request->get('date', $appointment->date);
         $startTime  = $request->get('start_time', $appointment->start_time);
 
-        // Calculamos el end_time dinámico basado en la duración del servicio
         $service = Service::findOrFail($serviceId);
+        $employeeId = $service->employee_id;
         $start = Carbon::parse($startTime);
         $end = $start->copy()->addMinutes($service->duration ?? 60); // Asume 60 min si no viene duración
         $endTime = $end->format('H:i:s');
@@ -289,8 +295,15 @@ class AppointmentController extends Controller
         $existingAppointments = Appointment::where('business_id', $businessId)
             ->whereDate('date', $date)
             ->whereIn('status', ['pending', 'confirmed', 'in_progress'])
-            ->where('service_id', $serviceId)
             ->where('id', '!=', $appointment->id)
+            ->when($employeeId, function ($query) use ($employeeId, $serviceId) {
+                $query->where(function ($q) use ($employeeId, $serviceId) {
+                    $q->where('employee_id', $employeeId)
+                      ->orWhere('service_id', $serviceId);
+                });
+            }, function ($query) use ($serviceId) {
+                $query->where('service_id', $serviceId);
+            })
             ->where(function ($query) use ($startTime, $endTime) {
                 $query->where(function ($q) use ($startTime, $endTime) {
                     $q->where('start_time', '<', $endTime)
@@ -328,7 +341,8 @@ class AppointmentController extends Controller
 
         // Si pasa todos los escudos, actualizamos la cita
         $appointment->update(array_merge($validated, [
-            'end_time' => $endTime
+            'end_time' => $endTime,
+            'employee_id' => $service->employee_id,
         ]));
 
         return response()->json($appointment, 200);

@@ -151,14 +151,22 @@ const AppointmentCard = ({ appointment, refreshList }) => {
             </>
           )}
 
-          {/* SI ESTÁ EN PROGRESO: Solo permitir cancelar si es necesario */}
+          {/* SI ESTÁ EN PROGRESO: Mostrar botón para Completar y opción de Cancelar */}
           {appointment.status === 'in_progress' && (
-            <button 
-              onClick={() => handleAction('cancelled')}
-              className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5"
-            >
-              <XCircle className="w-3.5 h-3.5" /> Cancelar
-            </button>
+            <>
+              <button 
+                onClick={() => handleAction('completed')}
+                className="bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
+              >
+                <CheckCircle className="w-3.5 h-3.5" /> Completar
+              </button>
+              <button 
+                onClick={() => handleAction('cancelled')}
+                className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5"
+              >
+                <XCircle className="w-3.5 h-3.5" /> Cancelar
+              </button>
+            </>
           )}
 
         </div>
