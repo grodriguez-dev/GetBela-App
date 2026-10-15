@@ -195,7 +195,7 @@ class AppointmentController extends Controller
                 if ($conflict->employee_id) {
                     $employee = Employee::find($conflict->employee_id);
                 } elseif ($conflict->service_id) {
-                    $svc = Service::find($conflict->service_id);
+                    $svc = Service::with('employee')->find($conflict->service_id);
                     if ($svc && $svc->employee_id) {
                         $employee = Employee::find($svc->employee_id);
                     }
