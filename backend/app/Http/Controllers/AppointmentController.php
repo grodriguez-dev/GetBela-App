@@ -17,6 +17,13 @@ use Carbon\Carbon;
 class AppointmentController extends Controller
 {
     /**
+     * Minutos de margen que se añaden al final de una cita para considerar que
+     * el empleado sigue ocupado (limpieza, preparación del siguiente cliente, etc.).
+     * Durante ese rango NO se puede agendar otra cita para ese empleado.
+     */
+    private const EMPLOYEE_BUFFER_MINUTES = 5;
+
+    /**
      * LISTAR CITAS: Recupera la agenda inyectando el servicio,
      * el estilista asignado y los insumos reservados.
      */
@@ -171,9 +178,15 @@ class AppointmentController extends Controller
             $existingStart = Carbon::parse($request->date . ' ' . $existing->start_time);
             $existingEnd = Carbon::parse($request->date . ' ' . $existing->end_time);
 
+            // Si el conflicto es por EMPLEADO OCUPADO, el rango ocupado se extiende
+            // EMPLOYEE_BUFFER_MINUTES al final (el empleado sigue ocupado esos minutos).
+            $existingBusyEnd = $sameEmployee
+                ? $existingEnd->copy()->addMinutes(self::EMPLOYEE_BUFFER_MINUTES)
+                : $existingEnd;
+
             // Intersección de rangos semiabiertos [inicio, fin):
-            // la nueva cita empieza antes de que termine la existente Y termina después de que empiece.
-            if ($startTime->lt($existingEnd) && $endTime->gt($existingStart)) {
+            // la nueva cita empieza antes de que termine el rango ocupado Y termina después de que empiece.
+            if ($startTime->lt($existingBusyEnd) && $endTime->gt($existingStart)) {
                 $overlapping = true;
                 $conflict = $existing;
                 break;
@@ -197,7 +210,7 @@ class AppointmentController extends Controller
             }
 
             $availableAt = $conflict
-                ? Carbon::parse($request->date . ' ' . $conflict->end_time)->addMinutes(5)->format('H:i')
+                ? Carbon::parse($request->date . ' ' . $conflict->end_time)->addMinutes(self::EMPLOYEE_BUFFER_MINUTES)->format('H:i')
                 : null;
 
             if ($employee && $availableAt) {
@@ -356,7 +369,12 @@ class AppointmentController extends Controller
             $existingStart = Carbon::parse($dateStr . ' ' . $existing->start_time);
             $existingEnd = Carbon::parse($dateStr . ' ' . $existing->end_time);
 
-            if ($start->lt($existingEnd) && $end->gt($existingStart)) {
+            // Mismo margen que en store(): el rango ocupado del empleado incluye +5 min.
+            $existingBusyEnd = $sameEmployee
+                ? $existingEnd->copy()->addMinutes(self::EMPLOYEE_BUFFER_MINUTES)
+                : $existingEnd;
+
+            if ($start->lt($existingBusyEnd) && $end->gt($existingStart)) {
                 $conflict = $existing;
                 break;
             }
@@ -377,7 +395,7 @@ class AppointmentController extends Controller
                 }
             }
 
-            $availableAt = Carbon::parse($dateStr . ' ' . $conflict->end_time)->addMinutes(5)->format('H:i');
+            $availableAt = Carbon::parse($dateStr . ' ' . $conflict->end_time)->addMinutes(self::EMPLOYEE_BUFFER_MINUTES)->format('H:i');
             $msg = $employee
                 ? "El empleado {$employee->name} está ocupado. Estará disponible a las {$availableAt}."
                 : "El horario solicitado se encuentra ocupado. Intenta después de las {$availableAt}.";
