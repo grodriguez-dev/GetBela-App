@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PhoneInput from '../PhoneInput';
 
 const EmployeeForm = ({ initialData, onSubmit, errors = {} }) => {
   const [formData, setFormData] = useState(initialData || {
@@ -14,10 +15,7 @@ const EmployeeForm = ({ initialData, onSubmit, errors = {} }) => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
-    // Validación de teléfono: solo números y max 11 dígitos
-    if (name === 'phone' && value.length > 11) return;
-    
+
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
@@ -44,19 +42,11 @@ const EmployeeForm = ({ initialData, onSubmit, errors = {} }) => {
       </div>
       <div className="col-span-1">
         <label className="block text-sm font-medium">Teléfono</label>
-        <input 
-            name="phone" 
-            type="text" 
-            value={formData.phone} 
-            onChange={(e) => {
-            // Solo permite números y máximo 11 dígitos
-            const val = e.target.value.replace(/\D/g, ''); 
-            if (val.length <= 11) {
-                setFormData(prev => ({ ...prev, phone: val }));
-            }
-            }} 
-            className="w-full border p-2 rounded" 
-            placeholder="Ej: 04121234567"
+        <PhoneInput
+            name="phone"
+            value={formData.phone}
+            onChange={(val) => setFormData(prev => ({ ...prev, phone: val }))}
+            invalid={!!errors.phone}
         />
         {renderError('phone')}
       </div>

@@ -1,6 +1,7 @@
 // src/components/public/AppointmentModal.jsx
 import React, { useState } from "react";
 import api from "../../api/axios"; // Asegúrate de ajustar la ruta de tu instancia de axios
+import PhoneInput from "../PhoneInput";
 import {
   Sparkles,
   Clock,
@@ -283,14 +284,13 @@ const AppointmentForm = ({ isOpen, onClose, service }) => {
                 <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
                   Teléfono / WhatsApp *
                 </label>
-                <input
-                  type="tel"
+                <PhoneInput
                   name="client_phone"
                   required
-                  placeholder="Ej. 04141234567"
                   value={formData.client_phone}
-                  onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:border-purple-900 font-medium"
+                  onChange={(val) =>
+                    setFormData((prev) => ({ ...prev, client_phone: val }))
+                  }
                 />
               </div>
             </div>

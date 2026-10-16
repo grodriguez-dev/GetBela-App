@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import PhoneInput from "./PhoneInput";
 
 // Componente auxiliar para el mensaje de error
 const ErrorMessage = ({ message }) => (
@@ -22,11 +23,6 @@ const BusinessForm = ({
       const file = files[0];
       setFormData({ ...formData, logo: file });
       setPreview(URL.createObjectURL(file));
-    } else if (name === "phone") {
-      const numbersOnly = value.replace(/[^0-9]/g, "");
-      if (numbersOnly.length <= 11) {
-        setFormData({ ...formData, [name]: numbersOnly });
-      }
     } else {
       setFormData({ ...formData, [name]: value });
     }
@@ -183,14 +179,11 @@ const BusinessForm = ({
           <label className="text-xs font-bold text-gray-500 uppercase ml-1">
             Telefono
           </label>
-          <input
-            type="tel"
+          <PhoneInput
             name="phone"
-            placeholder="04121234567"
             value={formData.phone}
-            onChange={handleChange}
-            className="w-full p-3 border rounded-xl"
-            maxLength="11"
+            onChange={(val) => setFormData({ ...formData, phone: val })}
+            invalid={!!errors.phone}
           />
           {errors.phone && <ErrorMessage message={errors.phone[0]} />}
         </div>

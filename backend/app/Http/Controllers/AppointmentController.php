@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\BlockTime;
 use App\Models\BusinessHour;
 use App\Models\Notification;
+use App\Support\Phone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -92,11 +93,16 @@ class AppointmentController extends Controller
      */
     public function store(Request $request)
     {
+        // Normalizamos el teléfono del cliente al formato venezolano (+58XXXXXXXXXX).
+        $request->merge([
+            'client_phone' => Phone::normalize($request->input('client_phone')),
+        ]);
+
         $request->validate([
             'business_id' => 'required|exists:businesses,id',
             'service_id' => 'required|exists:services,id',
             'client_name' => 'required|string|max:255',
-            'client_phone' => 'required|string|max:20',
+            'client_phone' => ['required', 'string', 'regex:/^\+58\d{10}$/'],
             'date' => 'required|date_format:Y-m-d|after_or_equal:today',
             'start_time' => 'required|date_format:H:i:s',
         ]);
@@ -635,8 +641,13 @@ class AppointmentController extends Controller
      */
     public function searchByPhone(Request $request)
     {
+        // Normalizamos el teléfono buscado para que coincida con el formato guardado (+58...).
+        $request->merge([
+            'phone' => Phone::normalize($request->input('phone')),
+        ]);
+
         $request->validate([
-            'phone' => 'required|string|max:20',
+            'phone' => ['required', 'string', 'regex:/^\+58\d{10}$/'],
         ]);
 
         $appointments = Appointment::whereHas('client', function ($q) use ($request) {

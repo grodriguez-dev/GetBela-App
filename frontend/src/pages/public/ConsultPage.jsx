@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import MainLayout from "../../layouts/MainLayout";
 import api from "../../api/axios";
+import PhoneInput from "../../components/PhoneInput";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -140,14 +141,12 @@ const ConsultPage = () => {
             className="flex flex-col sm:flex-row gap-3 max-w-xl mx-auto"
           >
             <div className="flex-1">
-              <input
-                type="text"
+              <PhoneInput
+                name="phone"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="Ej: +57 300 000 0000"
-                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                  validationError ? "border-red-500" : "border-gray-300"
-                }`}
+                onChange={setPhone}
+                placeholder="4123334567"
+                invalid={!!validationError}
               />
               {validationError && (
                 <p className="text-sm text-red-600 mt-1">{validationError}</p>

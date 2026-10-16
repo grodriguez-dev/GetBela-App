@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Employee;
 use App\Models\User;
+use App\Support\Phone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -30,10 +31,15 @@ class EmployeeController extends Controller
      */
     public function store(Request $request)
     {
+        // Normalizamos el teléfono del empleado al formato venezolano (+58XXXXXXXXXX).
+        $request->merge([
+            'phone' => Phone::normalize($request->input('phone')),
+        ]);
+
         $request->validate([
             'name' => 'required|string|max:255',
             'specialty' => 'required|string|max:255',
-            'phone' => 'nullable|string|max:20',
+            'phone' => ['nullable', 'string', 'regex:/^\+58\d{10}$/'],
             'commission_percentage' => 'required|numeric|min:0|max:100',
             // El interruptor del formulario frontend (booleano)
             'give_access' => 'nullable|boolean',
@@ -97,10 +103,15 @@ class EmployeeController extends Controller
             ->where('business_id', Auth::user()->business_id)
             ->firstOrFail();
 
+        // Normalizamos el teléfono del empleado al formato venezolano (+58XXXXXXXXXX).
+        $request->merge([
+            'phone' => Phone::normalize($request->input('phone')),
+        ]);
+
         $request->validate([
             'name' => 'required|string|max:255',
             'specialty' => 'nullable|string|max:255',
-            'phone' => 'nullable|string|max:20',
+            'phone' => ['nullable', 'string', 'regex:/^\+58\d{10}$/'],
             'commission_percentage' => 'required|numeric|min:0|max:100',
             'is_active' => 'required|boolean',
             'give_access' => 'nullable|boolean',

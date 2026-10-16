@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Business;
 use App\Http\Controllers\Controller;
+use App\Support\Phone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -27,12 +28,17 @@ class BusinessController extends Controller
 
     public function update(Request $request)
     {
+        // Normalizamos el teléfono del negocio al formato venezolano (+58XXXXXXXXXX).
+        $request->merge([
+            'phone' => Phone::normalize($request->input('phone')),
+        ]);
+
         // 1. Validar todos los campos de tu migración
         $request->validate([
             'name'        => 'sometimes|string|max:255',
             'type'        => 'sometimes|in:salon,independent',
             'modality'    => 'sometimes|in:local,domicilio,hibrido',
-            'phone'       => 'required|string|max:20',
+            'phone'       => ['required', 'string', 'regex:/^\+58\d{10}$/'],
             'address'     => 'required|string|max:255',
             'description' => 'nullable|string',
             'logo'        => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
