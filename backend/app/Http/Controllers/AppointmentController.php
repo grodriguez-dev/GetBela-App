@@ -137,85 +137,80 @@ class AppointmentController extends Controller
             return response()->json(['message' => 'La cita se sale del horario de atención del establecimiento.'], 422);
         }
 
-        // 3. ESCUDO 2: Algoritmo Avanzado Anti-Solapamiento (Inmune a Drivers de BD)
+        // 3. ESCUDO 2: Anti-Solapamiento (mismo servicio O mismo empleado ocupado)
+        // IMPORTANTE: No filtramos por empleado en SQL, porque las citas creadas antes de
+        // guardar employee_id lo tienen en NULL. Resolvemos el empleado efectivo en PHP
+        // (columna employee_id o, si falta, el empleado del servicio de la cita existente).
         $employeeId = $service->employee_id;
         $serviceId = $service->id;
 
         $existingAppointments = Appointment::withoutGlobalScopes()
-        ->where('business_id', $businessId)
-        ->whereDate('date', $request->date)
-        ->whereIn('status', ['pending', 'confirmed', 'in_progress'])
-        ->when($employeeId, function ($query) use ($employeeId, $serviceId) {
-            $query->where(function ($q) use ($employeeId, $serviceId) {
-                $q->where('employee_id', $employeeId)
-                  ->orWhere('service_id', $serviceId);
-            });
-        }, function ($query) use ($serviceId) {
-            $query->where('service_id', $serviceId);
-        })
-        ->get();
+            ->with('service')
+            ->where('business_id', $businessId)
+            ->whereDate('date', $request->date)
+            ->whereIn('status', ['pending', 'confirmed', 'in_progress'])
+            ->get();
 
         $overlapping = false;
+        $conflict = null;
 
         foreach ($existingAppointments as $existing) {
+            // Empleado efectivo de la cita existente.
+            $existingEmployeeId = $existing->employee_id
+                ?? optional($existing->service)->employee_id;
+
+            $sameService = $serviceId && (int) $existing->service_id === (int) $serviceId;
+            $sameEmployee = $employeeId && $existingEmployeeId
+                && (int) $existingEmployeeId === (int) $employeeId;
+
+            if (!$sameService && !$sameEmployee) {
+                continue;
+            }
+
             // Parseamos los tiempos de la base de datos usando la misma fecha del request para consistencia
             $existingStart = Carbon::parse($request->date . ' ' . $existing->start_time);
             $existingEnd = Carbon::parse($request->date . ' ' . $existing->end_time);
 
-            // Caso 1: La nueva cita empieza antes o al mismo tiempo, y termina después de que la existente empiece
-            // Caso 2: La nueva cita empieza antes de que la existente termine, y termina después o al mismo tiempo
-            // Caso 3: La nueva cita engloba completamente a la existente
-            if (($startTime->gte($existingStart) && $startTime->lt($existingEnd)) ||
-                ($endTime->gt($existingStart) && $endTime->lte($existingEnd)) ||
-                ($startTime->lte($existingStart) && $endTime->gte($existingEnd))) {
+            // Intersección de rangos semiabiertos [inicio, fin):
+            // la nueva cita empieza antes de que termine la existente Y termina después de que empiece.
+            if ($startTime->lt($existingEnd) && $endTime->gt($existingStart)) {
                 $overlapping = true;
+                $conflict = $existing;
                 break;
             }
         }
 
         if ($overlapping) {
+            // Resolvemos el empleado para informar quién está ocupado y su próxima disponibilidad.
             $employee = null;
-            $conflictEnd = null;
-            $conflict = null;
-            foreach ($existingAppointments as $existing) {
-                $es = Carbon::parse($request->date . ' ' . $existing->start_time);
-                $ee = Carbon::parse($request->date . ' ' . $existing->end_time);
-                if (($startTime->gte($es) && $startTime->lt($ee)) ||
-                    ($endTime->gt($es) && $endTime->lte($ee)) ||
-                    ($startTime->lte($es) && $endTime->gte($ee))) {
-                    $conflict = $existing;
-                    $conflictEnd = $ee;
-                    break;
-                }
-            }
             if ($employeeId) {
                 $employee = Employee::find($employeeId);
             }
-            if (!$employee && $conflict) {
-                if ($conflict->employee_id) {
-                    $employee = Employee::find($conflict->employee_id);
-                } elseif ($conflict->service_id) {
-                    $svc = Service::with('employee')->find($conflict->service_id);
-                    if ($svc && $svc->employee_id) {
-                        $employee = Employee::find($svc->employee_id);
-                    }
+            if (!$employee && $conflict && $conflict->employee_id) {
+                $employee = Employee::find($conflict->employee_id);
+            }
+            if (!$employee && $conflict && $conflict->service) {
+                $conflictEmployeeId = $conflict->service->employee_id;
+                if ($conflictEmployeeId) {
+                    $employee = Employee::find($conflictEmployeeId);
                 }
             }
-            if (!$employee && $service->employee_id) {
-                $employee = Employee::find($service->employee_id);
-            }
-            $availableAt = $conflictEnd ? $conflictEnd->copy()->addMinutes(5)->format('H:i') : null;
-            $empName = $employee->name ?? 'El empleado';
-            $msg = $availableAt
-                ? "El empleado {$empName} está ocupado. Estará disponible a las {$availableAt}."
-                : "El empleado {$empName} está ocupado en ese rango horario.";
-            return response()->json([
-                'message' => $msg
-            ], 422);
-        }
 
-        if ($overlapping) {
-            return response()->json(['message' => 'El horario solicitado o la especialista se encuentra ocupada en ese rango de tiempo.'], 422);
+            $availableAt = $conflict
+                ? Carbon::parse($request->date . ' ' . $conflict->end_time)->addMinutes(5)->format('H:i')
+                : null;
+
+            if ($employee && $availableAt) {
+                return response()->json([
+                    'message' => "El empleado {$employee->name} está ocupado. Estará disponible a las {$availableAt}.",
+                ], 422);
+            }
+
+            return response()->json([
+                'message' => $availableAt
+                    ? "El horario solicitado se encuentra ocupado. Intenta después de las {$availableAt}."
+                    : 'El horario solicitado se encuentra ocupado en ese rango de tiempo.',
+            ], 422);
         }
 
         // 4. ESCUDO 3: Verificar Bloqueos Manuales en la Agenda (Universal)
@@ -318,10 +313,12 @@ class AppointmentController extends Controller
         $date       = $request->get('date', $appointment->date);
         $startTime  = $request->get('start_time', $appointment->start_time);
 
+        $dateStr = Carbon::parse($date)->format('Y-m-d');
         $service = Service::findOrFail($serviceId);
         $employeeId = $service->employee_id;
-        $start = Carbon::parse($startTime);
-        $end = $start->copy()->addMinutes($service->duration ?? 60); // Asume 60 min si no viene duración
+        $start = Carbon::parse($dateStr . ' ' . $startTime);
+        $end = $start->copy()->addMinutes($service->duration_minutes ?? 60); // Duración real del servicio
+        $startTimeStr = $start->format('H:i:s');
         $endTime = $end->format('H:i:s');
 
         $businessId = $appointment->business_id; // Mantenemos el mismo negocio
@@ -331,31 +328,62 @@ class AppointmentController extends Controller
         // ------------------------------------------------------------------------
 
         // ------------------------------------------------------------------------
-        // 🛡️ ESCUDO 2: Anti-Solapamiento con otras citas del mismo especialista
+        // 🛡️ ESCUDO 2: Anti-Solapamiento (mismo servicio O mismo empleado ocupado)
+        // Igual que en store(): resolvemos el empleado efectivo en PHP para cubrir
+        // citas antiguas con employee_id = NULL.
         // ------------------------------------------------------------------------
-        $existingAppointments = Appointment::where('business_id', $businessId)
-            ->whereDate('date', $date)
+        $existingAppointments = Appointment::withoutGlobalScopes()
+            ->with('service')
+            ->where('business_id', $businessId)
+            ->whereDate('date', $dateStr)
             ->whereIn('status', ['pending', 'confirmed', 'in_progress'])
             ->where('id', '!=', $appointment->id)
-            ->when($employeeId, function ($query) use ($employeeId, $serviceId) {
-                $query->where(function ($q) use ($employeeId, $serviceId) {
-                    $q->where('employee_id', $employeeId)
-                      ->orWhere('service_id', $serviceId);
-                });
-            }, function ($query) use ($serviceId) {
-                $query->where('service_id', $serviceId);
-            })
-            ->where(function ($query) use ($startTime, $endTime) {
-                $query->where(function ($q) use ($startTime, $endTime) {
-                    $q->where('start_time', '<', $endTime)
-                    ->where('end_time', '>', $startTime);
-                });
-            })
-            ->exists();
+            ->get();
 
-        if ($existingAppointments) {
+        $conflict = null;
+        foreach ($existingAppointments as $existing) {
+            $existingEmployeeId = $existing->employee_id
+                ?? optional($existing->service)->employee_id;
+
+            $sameService = $serviceId && (int) $existing->service_id === (int) $serviceId;
+            $sameEmployee = $employeeId && $existingEmployeeId
+                && (int) $existingEmployeeId === (int) $employeeId;
+
+            if (!$sameService && !$sameEmployee) {
+                continue;
+            }
+
+            $existingStart = Carbon::parse($dateStr . ' ' . $existing->start_time);
+            $existingEnd = Carbon::parse($dateStr . ' ' . $existing->end_time);
+
+            if ($start->lt($existingEnd) && $end->gt($existingStart)) {
+                $conflict = $existing;
+                break;
+            }
+        }
+
+        if ($conflict) {
+            $employee = null;
+            if ($employeeId) {
+                $employee = Employee::find($employeeId);
+            }
+            if (!$employee && $conflict->employee_id) {
+                $employee = Employee::find($conflict->employee_id);
+            }
+            if (!$employee && $conflict->service) {
+                $conflictEmployeeId = $conflict->service->employee_id;
+                if ($conflictEmployeeId) {
+                    $employee = Employee::find($conflictEmployeeId);
+                }
+            }
+
+            $availableAt = Carbon::parse($dateStr . ' ' . $conflict->end_time)->addMinutes(5)->format('H:i');
+            $msg = $employee
+                ? "El empleado {$employee->name} está ocupado. Estará disponible a las {$availableAt}."
+                : "El horario solicitado se encuentra ocupado. Intenta después de las {$availableAt}.";
+
             return response()->json([
-                'message' => 'El horario solicitado o la especialista se encuentra ocupada en ese rango de tiempo.'
+                'message' => $msg
             ], 422);
         }
 
@@ -363,20 +391,20 @@ class AppointmentController extends Controller
         // 🛡️ ESCUDO 3: Bloqueos Administrativos (Manuales o Globales)
         // ------------------------------------------------------------------------
         $isBlocked = BlockTime::where('business_id', $businessId)
-            ->whereDate('date', $date)
+            ->whereDate('date', $dateStr)
             ->where(function ($query) use ($serviceId) {
                 $query->where('service_id', $serviceId) // Bloqueo específico
                     ->orWhereNull('service_id');       // Bloqueo global del salón
             })
-            ->where(function ($query) use ($startTime, $endTime) {
+            ->where(function ($query) use ($startTimeStr, $endTime) {
                 $query->where('start_time', '<', $endTime)
-                    ->where('end_time', '>', $startTime);
+                    ->where('end_time', '>', $startTimeStr);
             })
             ->exists();
 
         if ($isBlocked) {
             return response()->json([
-                'message' => 'El horario solicitado se encuentra blocked por la administración (Ausencia, almuerzo o descanso).'
+                'message' => 'El horario solicitado se encuentra bloqueado por la administración (Ausencia, almuerzo o descanso).'
             ], 422);
         }
 
