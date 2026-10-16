@@ -45,6 +45,25 @@ class AppointmentController extends Controller
     }
 
     /**
+     * ¿La cita ya alcanzó (o superó) su hora de finalización aproximada?
+     * Se usa para bloquear confirmar/iniciar una cita vencida.
+     */
+    private function hasPassedEndTime(Appointment $appointment, ?Carbon $at = null): bool
+    {
+        if (!$appointment->date || !$appointment->end_time) {
+            return false;
+        }
+
+        $at = $at ?? Carbon::now();
+        $scheduledEnd = Carbon::parse(
+            $appointment->date->format('Y-m-d') . ' ' . $appointment->end_time,
+            config('app.timezone')
+        );
+
+        return $scheduledEnd->lte($at);
+    }
+
+    /**
      * LISTAR CITAS: Recupera la agenda inyectando el servicio,
      * el estilista asignado y los insumos reservados.
      */
@@ -52,9 +71,9 @@ class AppointmentController extends Controller
     {
         $businessId = Auth::user()->business_id;
 
-        // 1. AUTO-CANCELAR: las citas que siguen en pending/confirmed y no se
-        // iniciaron dentro del margen de tolerancia desde su hora de inicio.
-        Appointment::cancelNoShows($businessId);
+        // 1. CIERRE AUTOMÁTICO: las citas pending/confirmed que alcanzaron su hora
+        // de finalización sin iniciarse (pending -> cancelled, confirmed -> no_show).
+        Appointment::autoResolveExpired($businessId);
 
         // 2. RETORNAR EL LISTADO ACTUALIZADO
         $appointments = Appointment::where('business_id', $businessId)
@@ -488,6 +507,13 @@ class AppointmentController extends Controller
             return response()->json(['message' => 'La cita no se encuentra en un estado apto para iniciar.'], 422);
         }
 
+        // No se puede iniciar una cita que ya llegó a su hora de finalización.
+        if ($this->hasPassedEndTime($appointment)) {
+            return response()->json([
+                'message' => 'No se puede iniciar la cita: ya pasó su hora de finalización aproximada.'
+            ], 422);
+        }
+
         $appointment->update(['status' => 'in_progress']);
 
         return response()->json([
@@ -552,7 +578,7 @@ class AppointmentController extends Controller
      */
     public function updateStatus(Request $request, $id)
     {
-        $request->validate(['status' => 'required|in:pending,confirmed,cancelled,completed,in_progress']);
+        $request->validate(['status' => 'required|in:pending,confirmed,cancelled,completed,in_progress,no_show']);
 
         $user = Auth::user();
 
@@ -581,6 +607,14 @@ class AppointmentController extends Controller
 
         $newStatus = $request->status;
         $attributes = ['status' => $newStatus];
+
+        // No se puede confirmar ni iniciar una cita que ya llegó a su hora de
+        // finalización aproximada (estrictamente a esa hora).
+        if (in_array($newStatus, ['confirmed', 'in_progress'], true) && $this->hasPassedEndTime($appointment)) {
+            return response()->json([
+                'message' => 'No se puede ' . ($newStatus === 'confirmed' ? 'confirmar' : 'iniciar') . ' la cita: ya pasó su hora de finalización aproximada.'
+            ], 422);
+        }
 
         // Al completar una cita guardamos cuánto se excedió respecto a su hora de
         // fin programada (0 = sin tiempo extra). Solo la primera vez que se completa.

@@ -35,11 +35,6 @@ class Appointment extends Model
     ];
 
     /**
-     * Minutos de tolerancia para dar por perdida una cita que no se inició.
-     */
-    public const NO_SHOW_TOLERANCE_MINUTES = 20;
-
-    /**
      * La cita pertenece a un negocio específico.
      */
     public function business(): BelongsTo
@@ -79,20 +74,23 @@ class Appointment extends Model
     }
 
     /**
-     * CANCELAR NO-SHOWS: cancela automáticamente las citas que siguen en
-     * pending/confirmed una vez superado el margen de tolerancia desde su hora
-     * de inicio, es decir, que nunca llegaron a empezar.
+     * CIERRE AUTOMÁTICO POR VENCIMIENTO: resuelve las citas que llegaron a su
+     * hora de finalización aproximada sin iniciarse.
+     *
+     *   - pending  -> cancelled  (nunca se confirmó)
+     *   - confirmed -> no_show   (se confirmó pero el cliente no llegó a empezar)
+     *
+     * Es estricto: se aplica exactamente al alcanzar la hora de finalización.
      *
      * @param  int|null  $businessId  Limita la limpieza a un negocio (null = todos).
-     * @param  int       $toleranceMinutes  Minutos de tolerancia tras la hora de inicio.
-     * @return int  Número de citas canceladas.
+     * @return array{cancelled: int, no_show: int}  Conteo por tipo de resolución.
      */
-    public static function cancelNoShows(?int $businessId = null, int $toleranceMinutes = self::NO_SHOW_TOLERANCE_MINUTES): int
+    public static function autoResolveExpired(?int $businessId = null): array
     {
         $now = Carbon::now();
 
         $query = static::whereIn('status', ['pending', 'confirmed'])
-            // Las citas de fechas futuras todavía no pueden ser inasistencias.
+            // Las citas de fechas futuras todavía no pueden vencerse.
             ->whereDate('date', '<=', $now->format('Y-m-d'));
 
         if ($businessId !== null) {
@@ -100,26 +98,36 @@ class Appointment extends Model
         }
 
         $cancelled = 0;
+        $noShow = 0;
 
-        $query->get()->each(function (self $appointment) use ($now, $toleranceMinutes, &$cancelled) {
-            if (!$appointment->date || !$appointment->start_time) {
+        $query->get()->each(function (self $appointment) use ($now, &$cancelled, &$noShow) {
+            if (!$appointment->date || !$appointment->end_time) {
                 return;
             }
 
-            $start = Carbon::parse($appointment->date->format('Y-m-d') . ' ' . $appointment->start_time);
+            $end = Carbon::parse($appointment->date->format('Y-m-d') . ' ' . $appointment->end_time);
 
-            if ($start->copy()->addMinutes($toleranceMinutes)->lte($now)) {
+            // Estrictamente al alcanzar (o superar) la hora de finalización.
+            if ($end->lte($now)) {
+                if ($appointment->status === 'confirmed') {
+                    $newStatus = 'no_show';
+                    $note = 'Marcada automáticamente como "no asistió": llegó su hora de finalización sin iniciarse.';
+                    $noShow++;
+                } else {
+                    $newStatus = 'cancelled';
+                    $note = 'Cancelada automáticamente: no se confirmó antes de su hora de finalización.';
+                    $cancelled++;
+                }
+
                 $appointment->update([
-                    'status' => 'cancelled',
+                    'status' => $newStatus,
                     'notes' => trim(
-                        ($appointment->notes ? $appointment->notes . "\n" : '')
-                        . "Cancelada automáticamente: no se inició dentro de los {$toleranceMinutes} min de tolerancia."
+                        ($appointment->notes ? $appointment->notes . "\n" : '') . $note
                     ),
                 ]);
-                $cancelled++;
             }
         });
 
-        return $cancelled;
+        return ['cancelled' => $cancelled, 'no_show' => $noShow];
     }
 }

@@ -1,9 +1,37 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import api from "../../api/axios";
 import CountdownTimer from "./CountdownTimer";
 import { Calendar, Clock, User, Phone, FileText, Play, CheckCircle, XCircle, Sparkles } from "lucide-react";
 
+const STATUS_LABELS = {
+  pending: "Pendiente",
+  confirmed: "Confirmada",
+  in_progress: "En progreso",
+  completed: "Completada",
+  cancelled: "Cancelada",
+  no_show: "No asistió",
+};
+
+const STATUS_STYLES = {
+  completed: "bg-green-100 text-green-800",
+  in_progress: "bg-blue-100 text-blue-800 animate-pulse",
+  cancelled: "bg-red-100 text-red-800",
+  no_show: "bg-gray-200 text-gray-700",
+};
+
 const AppointmentCard = ({ appointment, refreshList }) => {
+  const [nowTick, setNowTick] = useState(() => Date.now());
+
+  // Re-evaluamos el tiempo cada segundo en citas aún accionables para saber
+  // cuándo se alcanza la hora de finalización y bloquear Confirmar/Empezar.
+  useEffect(() => {
+    if (appointment.status !== "pending" && appointment.status !== "confirmed") {
+      return;
+    }
+    const id = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [appointment.status]);
+
   const handleAction = async (newStatus) => {
     try {
       await api.patch(`/api/appointments/${appointment.id}/status`, { status: newStatus });
@@ -15,6 +43,14 @@ const AppointmentCard = ({ appointment, refreshList }) => {
 
   // Limpiamos la fecha para que solo muestre Año-Mes-Día (YYYY-MM-DD)
   const cleanDate = appointment.date ? appointment.date.split("T")[0] : "";
+
+  // ¿Ya se alcanzó la hora de finalización aproximada de la cita?
+  const endTimestamp = (() => {
+    if (!appointment.date || !appointment.end_time) return null;
+    const t = new Date(`${cleanDate}T${appointment.end_time}`).getTime();
+    return Number.isNaN(t) ? null : t;
+  })();
+  const hasEnded = endTimestamp !== null && nowTick >= endTimestamp;
 
   // Formatea el tiempo extra (en segundos) que duró la cita más allá de su hora
   // de fin programada. Devuelve null cuando no hubo tiempo extra para no mostrar nada.
@@ -43,11 +79,9 @@ const AppointmentCard = ({ appointment, refreshList }) => {
       <div className="space-y-2 flex-1">
         <div className="flex items-center gap-2">
           <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider ${
-            appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
-            appointment.status === 'in_progress' ? 'bg-blue-100 text-blue-800 animate-pulse' :
-            appointment.status === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
+            STATUS_STYLES[appointment.status] || 'bg-amber-100 text-amber-800'
           }`}>
-            {appointment.status}
+            {STATUS_LABELS[appointment.status] || appointment.status}
           </span>
           <span className="text-xs text-black font-medium flex items-center gap-1">
             <Calendar className="w-3.5 h-3.5" /> {cleanDate}
@@ -143,15 +177,22 @@ const AppointmentCard = ({ appointment, refreshList }) => {
 
         <div className="flex items-center gap-2 w-full md:w-auto">
           
-          {/* SI ESTÁ PENDIENTE: Mostrar Confirmar y Rechazar/Cancelar */}
+          {/* SI ESTÁ PENDIENTE: Mostrar Confirmar (solo si no venció) y Rechazar/Cancelar */}
           {appointment.status === 'pending' && (
             <>
-              <button 
-                onClick={() => handleAction('confirmed')}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
-              >
-                <CheckCircle className="w-3.5 h-3.5" /> Confirmar
-              </button>
+              {!hasEnded && (
+                <button 
+                  onClick={() => handleAction('confirmed')}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
+                >
+                  <CheckCircle className="w-3.5 h-3.5" /> Confirmar
+                </button>
+              )}
+              {hasEnded && (
+                <span className="text-xs font-bold text-gray-400 px-2 text-right">
+                  Hora de finalización alcanzada
+                </span>
+              )}
               <button 
                 onClick={() => handleAction('cancelled')}
                 className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5"
@@ -161,15 +202,22 @@ const AppointmentCard = ({ appointment, refreshList }) => {
             </>
           )}
 
-          {/* SI ESTÁ CONFIRMADA: Mostrar Empezar y Cancelar */}
+          {/* SI ESTÁ CONFIRMADA: Mostrar Empezar (solo si no venció) y Cancelar */}
           {appointment.status === 'confirmed' && (
             <>
-              <button 
-                onClick={() => handleAction('in_progress')}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
-              >
-                <Play className="w-3.5 h-3.5" /> Empezar
-              </button>
+              {!hasEnded && (
+                <button 
+                  onClick={() => handleAction('in_progress')}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
+                >
+                  <Play className="w-3.5 h-3.5" /> Empezar
+                </button>
+              )}
+              {hasEnded && (
+                <span className="text-xs font-bold text-gray-400 px-2 text-right">
+                  Hora de finalización alcanzada; no se puede iniciar
+                </span>
+              )}
               <button 
                 onClick={() => handleAction('cancelled')}
                 className="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5"
