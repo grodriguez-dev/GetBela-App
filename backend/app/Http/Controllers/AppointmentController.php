@@ -24,33 +24,37 @@ class AppointmentController extends Controller
     private const EMPLOYEE_BUFFER_MINUTES = 5;
 
     /**
+     * Segundos de más que ha durado (o duró) una cita con respecto a su hora de
+     * fin programada. Devuelve 0 si aún no se ha pasado del fin previsto.
+     */
+    private function overtimeSeconds(Appointment $appointment, ?Carbon $at = null): int
+    {
+        if (!$appointment->date || !$appointment->end_time) {
+            return 0;
+        }
+
+        $at = $at ?? Carbon::now();
+        $scheduledEnd = Carbon::parse(
+            $appointment->date->format('Y-m-d') . ' ' . $appointment->end_time,
+            config('app.timezone')
+        );
+
+        return $at->greaterThan($scheduledEnd)
+            ? (int) abs($at->diffInSeconds($scheduledEnd))
+            : 0;
+    }
+
+    /**
      * LISTAR CITAS: Recupera la agenda inyectando el servicio,
      * el estilista asignado y los insumos reservados.
      */
     public function index()
     {
         $businessId = Auth::user()->business_id;
-        $now = Carbon::now();
 
-        // 1. AUTO-CANCELAR únicamente si la cita ya venció realmente en tiempo real.
-        $appointmentsToCancel = Appointment::where('business_id', $businessId)
-            ->whereIn('status', ['pending', 'confirmed'])
-            ->get()
-            ->filter(function ($appointment) use ($now) {
-                if (!$appointment->date || !$appointment->end_time) {
-                    return false;
-                }
-
-                $appointmentDate = Carbon::parse($appointment->date->format('Y-m-d'));
-                $appointmentEnd = Carbon::parse($appointmentDate->format('Y-m-d') . ' ' . $appointment->end_time);
-
-                return $appointmentDate->lt($now->copy()->startOfDay())
-                    || ($appointmentDate->isSameDay($now) && $appointmentEnd->lt($now));
-            });
-
-        foreach ($appointmentsToCancel as $appointment) {
-            $appointment->update(['status' => 'cancelled']);
-        }
+        // 1. AUTO-CANCELAR: las citas que siguen en pending/confirmed y no se
+        // iniciaron dentro del margen de tolerancia desde su hora de inicio.
+        Appointment::cancelNoShows($businessId);
 
         // 2. RETORNAR EL LISTADO ACTUALIZADO
         $appointments = Appointment::where('business_id', $businessId)
@@ -508,18 +512,12 @@ class AppointmentController extends Controller
 
         // 1. LÓGICA DE TIEMPO: Control exacto de minutos excedidos (Timezone blindado)
         $now = Carbon::now();
-        $theoreticalEnd = Carbon::createFromFormat(
-            'Y-m-d H:i:s', 
-            $appointment->date->format('Y-m-d') . ' ' . $appointment->end_time,
-            config('app.timezone')
-        );
+        $overtimeSeconds = $this->overtimeSeconds($appointment, $now);
 
         $extraNotes = "";
-        if ($now->greaterThan($theoreticalEnd)) {
-            $minutesExceeded = intval(abs($now->diffInMinutes($theoreticalEnd)));
-            if ($minutesExceeded > 0) {
-                $extraNotes = "\n[Cita finalizada con {$minutesExceeded} minutos de retraso]";
-            }
+        if ($overtimeSeconds >= 60) {
+            $minutesExceeded = intdiv($overtimeSeconds, 60);
+            $extraNotes = "\n[Cita finalizada con {$minutesExceeded} minutos de retraso]";
         }
 
         // 2. AUTOMATIZACIÓN DE STOCK: Recorrer insumos de la cita y rebajarlos del inventario físico
@@ -539,6 +537,7 @@ class AppointmentController extends Controller
         // 3. Salvar el registro finalizando la operación
         $appointment->update([
             'status' => 'completed',
+            'overtime_seconds' => $overtimeSeconds,
             'notes' => $appointment->notes . $extraNotes
         ]);
 
@@ -553,7 +552,7 @@ class AppointmentController extends Controller
      */
     public function updateStatus(Request $request, $id)
     {
-        $request->validate(['status' => 'required|in:pending,confirmed,cancelled,completed,no_show,in_progress']);
+        $request->validate(['status' => 'required|in:pending,confirmed,cancelled,completed,in_progress']);
 
         $user = Auth::user();
 
@@ -580,7 +579,16 @@ class AppointmentController extends Controller
             ], 422);
         }
 
-        $appointment->update(['status' => $request->status]);
+        $newStatus = $request->status;
+        $attributes = ['status' => $newStatus];
+
+        // Al completar una cita guardamos cuánto se excedió respecto a su hora de
+        // fin programada (0 = sin tiempo extra). Solo la primera vez que se completa.
+        if ($newStatus === 'completed' && $appointment->status !== 'completed') {
+            $attributes['overtime_seconds'] = $this->overtimeSeconds($appointment);
+        }
+
+        $appointment->update($attributes);
 
         return response()->json([
             'message' => 'Estado de la cita actualizado correctamente.',

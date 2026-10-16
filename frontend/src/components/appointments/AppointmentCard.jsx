@@ -16,6 +16,26 @@ const AppointmentCard = ({ appointment, refreshList }) => {
   // Limpiamos la fecha para que solo muestre Año-Mes-Día (YYYY-MM-DD)
   const cleanDate = appointment.date ? appointment.date.split("T")[0] : "";
 
+  // Formatea el tiempo extra (en segundos) que duró la cita más allá de su hora
+  // de fin programada. Devuelve null cuando no hubo tiempo extra para no mostrar nada.
+  const formatOvertime = (totalSeconds) => {
+    const seconds = Number(totalSeconds) || 0;
+    if (seconds <= 0) return null;
+
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    const parts = [];
+    if (hours > 0) parts.push(`${hours} h`);
+    if (minutes > 0) parts.push(`${minutes} min`);
+    if (secs > 0 || parts.length === 0) parts.push(`${secs} seg`);
+
+    return parts.join(" ");
+  };
+
+  const overtimeLabel = formatOvertime(appointment.overtime_seconds);
+
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
       
@@ -84,10 +104,18 @@ const AppointmentCard = ({ appointment, refreshList }) => {
         )}
 
         <div className="flex items-center gap-3 text-xs font-medium text-gray-500 pt-2">
-          {/* 2. SI ESTÁ COMPLETADA: Mostrar texto de Finalizado */}
+          {/* 2. SI ESTÁ COMPLETADA: Mostrar texto de Finalizado y, si aplica, el tiempo extra */}
           {appointment.status === 'completed' && (
-            <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5">
-              <span>Cita Finalizada</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                <span>Cita Finalizada</span>
+              </div>
+              {overtimeLabel && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Tiempo extra: +{overtimeLabel}</span>
+                </div>
+              )}
             </div>
           )}
 
