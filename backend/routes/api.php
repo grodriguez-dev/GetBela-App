@@ -13,6 +13,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PublicHomeController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\SettlementController;
 use App\Http\Controllers\admin\CategoryController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -55,6 +56,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/business-hours', [BusinessHourController::class, 'index']);
         Route::put('/business-hours', [BusinessHourController::class, 'updateWeeklyHours']);
         Route::get('/finances/dashboard', [FinanceController::class, 'getDashboard']);
+        Route::get('/settlements', [SettlementController::class, 'index']);
+        Route::get('/settlements/preview', [SettlementController::class, 'preview']);
+        Route::post('/settlements', [SettlementController::class, 'store']);
         Route::delete('/products/{id}', [ProductController::class, 'destroy']);
         Route::post('/business/update', [BusinessController::class, 'update']);
     });

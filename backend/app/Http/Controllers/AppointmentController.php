@@ -65,6 +65,36 @@ class AppointmentController extends Controller
     }
 
     /**
+     * ¿Ya se abrió la ventana para iniciar la cita? Es estricto: solo desde
+     * Appointment::START_EARLY_MINUTES minutos antes de la hora de inicio.
+     * Si la cita no tiene hora de inicio definida, no se bloquea.
+     */
+    private function hasReachedStartWindow(Appointment $appointment, ?Carbon $at = null): bool
+    {
+        $windowStart = $appointment->startWindowAt();
+
+        if (!$windowStart) {
+            return true;
+        }
+
+        $at = $at ?? Carbon::now();
+
+        return $windowStart->lte($at);
+    }
+
+    /**
+     * Mensaje 422 cuando se intenta iniciar una cita antes de tiempo.
+     */
+    private function tooEarlyMessage(Appointment $appointment): string
+    {
+        $start = $appointment->startAt();
+        $windowStart = $appointment->startWindowAt();
+
+        return 'La cita comienza a las ' . ($start?->format('H:i') ?? '--:--')
+            . '. Podrás iniciarla a partir de las ' . ($windowStart?->format('H:i') ?? '--:--') . '.';
+    }
+
+    /**
      * LISTAR CITAS: Recupera la agenda inyectando el servicio,
      * el estilista asignado y los insumos reservados.
      */
@@ -130,8 +160,17 @@ class AppointmentController extends Controller
         $now = Carbon::now();
 
         if ($startTime->lt($now->copy()->subMinutes(15)) && Carbon::parse($request->date)->isToday()) {
+            $message = 'La hora seleccionada (' . $startTime->format('H:i') . ') ya pasó. Elige un horario futuro para hoy.';
+
+            // Ayuda extra cuando el usuario pudo confundir 12 h con 24 h
+            // (p. ej. elegir "10:15" queriendo decir 10:15 p. m. = 22:15).
+            if ($startTime->hour < 12) {
+                $message .= ' Si querías la tarde/noche, en formato de 24 horas se escribe sumando 12 ('
+                    . $startTime->format('H:i') . ' -> ' . $startTime->copy()->addHours(12)->format('H:i') . ').';
+            }
+
             return response()->json([
-                'message' => 'La hora seleccionada ya pasó. Elige un horario futuro para hoy.',
+                'message' => $message,
                 'errors' => [
                     'start_time' => ['La cita no puede crearse en un horario ya vencido.']
                 ]
@@ -520,6 +559,11 @@ class AppointmentController extends Controller
             ], 422);
         }
 
+        // Solo se puede iniciar desde START_EARLY_MINUTES minutos antes del inicio.
+        if (!$this->hasReachedStartWindow($appointment)) {
+            return response()->json(['message' => $this->tooEarlyMessage($appointment)], 422);
+        }
+
         $appointment->update(['status' => 'in_progress']);
 
         return response()->json([
@@ -620,6 +664,11 @@ class AppointmentController extends Controller
             return response()->json([
                 'message' => 'No se puede ' . ($newStatus === 'confirmed' ? 'confirmar' : 'iniciar') . ' la cita: ya pasó su hora de finalización aproximada.'
             ], 422);
+        }
+
+        // Iniciar solo desde START_EARLY_MINUTES minutos antes de la hora de inicio.
+        if ($newStatus === 'in_progress' && !$this->hasReachedStartWindow($appointment)) {
+            return response()->json(['message' => $this->tooEarlyMessage($appointment)], 422);
         }
 
         // Al completar una cita guardamos cuánto se excedió respecto a su hora de

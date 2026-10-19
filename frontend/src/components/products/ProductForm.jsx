@@ -1,18 +1,40 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useId } from "react";
+import Modal from "../Modal";
 
-const ProductForm = ({ initialData = {}, onSubmit, errors = {} }) => {
-  const [formData, setFormData] = useState(
-    initialData || {
-      name: "",
-      brand: "",
-      description: "",
-      stock_current: "",
-      stock_min: "",
-      purchase_price: "",
-      sale_price: "",
-      type: "uso_interno", // valor por defecto
-    },
-  );
+const emptyProduct = {
+  name: "",
+  brand: "",
+  description: "",
+  stock_current: "",
+  stock_min: "",
+  purchase_price: "",
+  sale_price: "",
+  type: "uso_interno", // valor por defecto
+};
+
+// Normaliza la data que viene de la BD para que los campos de texto nunca sean
+// null/undefined (evita el warning de React: "value prop ... should not be null").
+const buildInitialData = (data) => ({
+  ...emptyProduct,
+  ...(data || {}),
+  name: data?.name ?? "",
+  brand: data?.brand ?? "",
+  description: data?.description ?? "",
+  stock_current: data?.stock_current ?? "",
+  stock_min: data?.stock_min ?? "",
+  purchase_price: data?.purchase_price ?? "",
+  sale_price: data?.sale_price ?? "",
+  type: data?.type ?? "uso_interno",
+});
+
+const ProductForm = ({ isOpen, onClose, initialData, onSubmit, errors = {} }) => {
+  const [formData, setFormData] = useState(buildInitialData(initialData));
+  const formId = "product-form-" + useId().replace(/[^a-zA-Z0-9]/g, "");
+  const isEditing = !!(initialData && initialData.id);
+
+  useEffect(() => {
+    setFormData(buildInitialData(initialData));
+  }, [initialData, isOpen]);
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
@@ -42,7 +64,15 @@ const numericFields = ['stock_current', 'stock_min', 'purchase_price', 'sale_pri
     ) : null;
 
   return (
-    <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isEditing ? "Editar Producto" : "Nuevo Producto"}
+      formId={formId}
+      submitLabel={isEditing ? "Actualizar" : "Crear"}
+      maxWidth="max-w-lg"
+    >
+    <form id={formId} onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
       {/* Nombre y Marca */}
       <div className="col-span-2">
         <label className="block text-sm font-medium text-gray-700">
@@ -166,17 +196,8 @@ const numericFields = ['stock_current', 'stock_min', 'purchase_price', 'sale_pri
         />
         {renderError("description")}
       </div>
-
-      {/* Acciones */}
-      <div className="col-span-2 flex justify-end gap-3 mt-4">
-        <button
-          type="submit"
-          className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-        >
-          Guardar
-        </button>
-      </div>
     </form>
+    </Modal>
   );
 };
 

@@ -1,11 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import PhoneInput from '../PhoneInput';
+import Modal from '../Modal';
 
-const EmployeeForm = ({ initialData, onSubmit, errors = {} }) => {
-  const [formData, setFormData] = useState(initialData || {
-    name: '', specialty: '', phone: '', commission_percentage: '', is_active: true,
-    give_access: false, email: '', password: ''
-  });
+const emptyEmployee = {
+  name: '', specialty: '', phone: '', commission_percentage: '', is_active: true,
+  give_access: false, email: '', password: ''
+};
+
+// Normaliza la data del API para que los campos de texto nunca sean null/undefined.
+const buildInitialData = (data) => ({
+  ...emptyEmployee,
+  ...(data || {}),
+  name: data?.name ?? '',
+  specialty: data?.specialty ?? '',
+  phone: data?.phone ?? '',
+  commission_percentage: data?.commission_percentage ?? '',
+  email: data?.email ?? '',
+  password: data?.password ?? '',
+  is_active: data?.is_active ?? true,
+  give_access: data?.give_access ?? false,
+});
+
+const EmployeeForm = ({ isOpen, onClose, initialData, onSubmit, errors = {} }) => {
+  const [formData, setFormData] = useState(buildInitialData(initialData));
+  const formId = "employee-form-" + useId().replace(/[^a-zA-Z0-9]/g, "");
+
+  useEffect(() => {
+    setFormData(buildInitialData(initialData));
+  }, [initialData, isOpen]);
 
   const renderError = (field) => {
         return errors[field] ? (
@@ -24,7 +46,17 @@ const EmployeeForm = ({ initialData, onSubmit, errors = {} }) => {
   };
 
   return (
-    <form onSubmit={(e) => {
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={initialData ? 'Editar Empleado' : 'Nuevo Empleado'}
+      formId={formId}
+      submitLabel={initialData ? 'Actualizar' : 'Crear'}
+      maxWidth="max-w-lg"
+    >
+    <form
+      id={formId}
+      onSubmit={(e) => {
                 e.preventDefault(); // Evita que la página se recargue
                 onSubmit(formData); // Envía los datos a la función del padre
             }}
@@ -114,11 +146,8 @@ const EmployeeForm = ({ initialData, onSubmit, errors = {} }) => {
           </div>
         </>
       )}
-
-      <button type="submit" className="col-span-2 bg-purple-600 text-white py-2 rounded-lg mt-4">
-        Guardar Empleado
-      </button>
     </form>
+    </Modal>
   );
 };
 

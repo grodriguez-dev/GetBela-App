@@ -104,27 +104,13 @@ const ProductList = () => {
         </table>
       </div>
 
-      {/* Modal - Aquí implementarías tu lógica de modal existente */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg w-full max-w-lg">
-            <h2 className="text-lg font-bold mb-4">
-              {selectedProduct ? "Editar Producto" : "Nuevo Producto"}
-            </h2>
-            <ProductForm
-              initialData={selectedProduct}
-              onSubmit={handleSaveProduct}
-              errors={errors}
-            />
-            <button 
-                onClick={() => setIsModalOpen(false)}
-                className="mt-4 bg-gray-500 text-white px-4 py-2 rounded"
-            >
-                Cerrar
-            </button>
-          </div>
-        </div>
-      )}
+      <ProductForm
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        initialData={selectedProduct}
+        onSubmit={handleSaveProduct}
+        errors={errors}
+      />
     </div>
   );
 };

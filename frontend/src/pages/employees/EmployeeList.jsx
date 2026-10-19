@@ -122,28 +122,13 @@ const EmployeeList = () => {
         </table>
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-lg">
-            <h2 className="text-xl font-bold mb-4">
-                {selectedEmployee ? 'Editar Empleado' : 'Nuevo Empleado'}
-            </h2>
-            
-            <EmployeeForm 
-                initialData={selectedEmployee} 
-                onSubmit={handleSaveEmployee}
-                errors={errors} 
-            />
-
-            <button 
-                onClick={() => setIsModalOpen(false)}
-                className="mt-4 bg-gray-500 text-white px-4 py-2 rounded"
-            >
-                Cerrar
-            </button>
-            </div>
-        </div>
-       )}
+      <EmployeeForm
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        initialData={selectedEmployee}
+        onSubmit={handleSaveEmployee}
+        errors={errors}
+      />
     </div>
   );
 };

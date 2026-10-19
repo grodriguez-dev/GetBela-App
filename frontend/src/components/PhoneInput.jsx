@@ -9,11 +9,17 @@ export const PHONE_PREFIX = "+58";
  * sin el +58 y sin el 0 inicial (ej. "4123334567").
  */
 export const toLocalDigits = (value) => {
-  let digits = String(value ?? "").replace(/\D/g, "");
+  const raw = String(value ?? "").trim();
+  let digits = raw.replace(/\D/g, "");
   if (!digits) return "";
 
-  // Quita el código de país (58) cuando viene incluido en el número.
-  if (digits.startsWith("58") && digits.length > 10) {
+  // Si el valor viene en formato internacional ("+58...") quitamos el código
+  // de país. Importante: se decide por la presencia del "+" y no por la
+  // longitud, para que funcione mientras el usuario escribe (p. ej. "+584").
+  if (raw.startsWith("+") && digits.startsWith("58")) {
+    digits = digits.slice(2);
+  } else if (digits.startsWith("58") && digits.length > 10) {
+    // Formato guardado sin "+" pero con código de país (ej. "584123334567").
     digits = digits.slice(2);
   }
 

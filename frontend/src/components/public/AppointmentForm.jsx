@@ -1,17 +1,9 @@
 // src/components/public/AppointmentModal.jsx
-import React, { useState } from "react";
+import React, { useState, useId } from "react";
 import api from "../../api/axios"; // Asegúrate de ajustar la ruta de tu instancia de axios
 import PhoneInput from "../PhoneInput";
-import {
-  Sparkles,
-  Clock,
-  DollarSign,
-  Store,
-  Calendar,
-  FileText,
-  CheckCircle2,
-  X,
-} from "lucide-react";
+import Modal from "../Modal";
+import { Clock, DollarSign, Store, FileText } from "lucide-react";
 
 // Devuelve la fecha en formato YYYY-MM-DD usando la zona horaria LOCAL del navegador.
 // Evita el bug de toISOString(), que convierte a UTC y puede adelantar un día.
@@ -20,6 +12,23 @@ export const getLocalDateString = (date = new Date()) => {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+};
+
+// Hora actual en formato HH:MM (24 h, zona local del navegador).
+export const getLocalTimeString = (date = new Date()) =>
+  `${String(date.getHours()).padStart(2, "0")}:${String(
+    date.getMinutes(),
+  ).padStart(2, "0")}`;
+
+// Convierte "HH:MM" (24 h) a una etiqueta de 12 horas (ej. "10:15 p. m.").
+// Sirve para que el usuario vea sin ambigüedad si eligió a. m. o p. m.
+export const formatTo12h = (hhmm) => {
+  if (!hhmm || !hhmm.includes(":")) return "";
+  const [h, m] = hhmm.split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return "";
+  const suffix = h < 12 ? "a. m." : "p. m.";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(m).padStart(2, "0")} ${suffix}`;
 };
 
 const AppointmentForm = ({ isOpen, onClose, service }) => {
@@ -34,6 +43,11 @@ const AppointmentForm = ({ isOpen, onClose, service }) => {
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const formId = "appointment-form-" + useId().replace(/[^a-zA-Z0-9]/g, "");
+
+  // Si la cita es para hoy, la hora mínima permitida es la hora actual.
+  const isToday = formData.date === getLocalDateString();
+  const minTimeForToday = isToday ? getLocalTimeString() : undefined;
 
   if (!isOpen || !service) return null;
 
@@ -75,8 +89,24 @@ const AppointmentForm = ({ isOpen, onClose, service }) => {
   // 4. Enviar formulario al backend
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setErrorMessage("");
+
+    // Refuerzo: no permitir agendar hoy en una hora ya pasada. Esto evita la
+    // confusión típica entre 12 h y 24 h (elegir "10:15" y que en realidad sea
+    // 10:15 a. m. cuando se quería 10:15 p. m.).
+    if (
+      isToday &&
+      formData.start_time &&
+      formData.start_time < getLocalTimeString()
+    ) {
+      setErrorMessage(
+        `La hora ${formatTo12h(formData.start_time)} (${formData.start_time}) ya pasó hoy. ` +
+          "Elige una hora futura. Recuerda que, si quieres la tarde/noche, en 24 h se escribe sumando 12 (ej. 10:15 p. m. = 22:15).",
+      );
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const payload = {
@@ -106,19 +136,18 @@ const AppointmentForm = ({ isOpen, onClose, service }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 py-12 z-50 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-2xl w-full p-6 md:p-8 shadow-2xl relative my-auto">
-        {/* Cabecera */}
-        <div className="mb-6">
-          <span className="text-xs font-bold uppercase tracking-wider text-purple-800 bg-purple-50 px-3 py-1 rounded-full">
-            Confirmación de Reserva
-          </span>
-          <h3 className="text-2xl font-extrabold text-purple-950 mt-2">
-            Detalles de tu Cita
-          </h3>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      eyebrow="Confirmación de Reserva"
+      title="Detalles de tu Cita"
+      formId={formId}
+      submitLabel={loading ? "Procesando reserva..." : "Confirmar Cita"}
+      submitDisabled={loading}
+      cancelDisabled={loading}
+      maxWidth="max-w-2xl"
+    >
+        <form id={formId} onSubmit={handleSubmit} className="space-y-6">
           {/* SECCIÓN 1: DETALLES FIJOS DEL SERVICIO Y NEGOCIO */}
           <div className="bg-purple-900/5 border border-purple-100 p-5 rounded-2xl">
             <h4 className="text-sm font-bold text-purple-950 uppercase mb-3 flex items-center gap-2">
@@ -241,10 +270,23 @@ const AppointmentForm = ({ isOpen, onClose, service }) => {
                 type="time"
                 name="start_time"
                 required
+                step="60"
+                min={minTimeForToday}
                 value={formData.start_time}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:border-purple-900 font-medium"
               />
+              {formData.start_time && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Hora elegida:{" "}
+                  <strong className="text-purple-900">
+                    {formatTo12h(formData.start_time)}
+                  </strong>{" "}
+                  <span className="text-gray-400">
+                    ({formData.start_time} en 24 h)
+                  </span>
+                </p>
+              )}
             </div>
           </div>
 
@@ -312,40 +354,14 @@ const AppointmentForm = ({ isOpen, onClose, service }) => {
             </div>
           </div>
 
-          {/* Botones de acción finales */}
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={loading}
-              className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-xl transition-all"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-purple-950 hover:bg-purple-900 text-white font-bold py-3.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                "Procesando reserva..."
-              ) : (
-                <>
-                  <CheckCircle2 className="w-5 h-5" /> Confirmar Cita
-                </>
-              )}
-            </button>
-          </div>
+          {/* Mensaje de Error si la API rechaza algo (ej. solapamiento o cerrado) */}
+          {errorMessage && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm font-medium">
+              {errorMessage}
+            </div>
+          )}
         </form>
-
-        {/* Mensaje de Error si la API rechaza algo (ej. solapamiento o cerrado) */}
-        {errorMessage && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm font-medium">
-            {errorMessage}
-          </div>
-        )}
-      </div>
-    </div>
+    </Modal>
   );
 };
 

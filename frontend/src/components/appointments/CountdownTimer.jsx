@@ -1,16 +1,34 @@
 import React, { useEffect, useState } from "react";
 import { Clock } from "lucide-react";
 
-const CountdownTimer = ({ endTime }) => {
+const CountdownTimer = ({ endAt, endTime }) => {
   const [timeLeft, setTimeLeft] = useState("");
   const [isExpired, setIsExpired] = useState(false);
 
   useEffect(() => {
     const calculateTimeRemaining = () => {
       const now = new Date();
-      const [hours, minutes, seconds] = endTime.split(":").map(Number);
-      const targetTime = new Date();
-      targetTime.setHours(hours, minutes, seconds || 0, 0);
+
+      // Preferimos el instante exacto que envía el backend (zona del negocio),
+      // para que el contador sea el mismo en cualquier dispositivo.
+      let targetTime;
+      if (endAt) {
+        targetTime = new Date(endAt);
+        if (Number.isNaN(targetTime.getTime())) {
+          targetTime = null;
+        }
+      }
+
+      // Respaldo: hora del fin construida con la zona del dispositivo.
+      if (!targetTime && endTime) {
+        const [hours, minutes, seconds] = endTime.split(":").map(Number);
+        targetTime = new Date();
+        targetTime.setHours(hours, minutes, seconds || 0, 0);
+      }
+
+      if (!targetTime) {
+        return;
+      }
 
       const diff = targetTime - now;
 
@@ -38,7 +56,7 @@ const CountdownTimer = ({ endTime }) => {
     const interval = setInterval(calculateTimeRemaining, 1000);
 
     return () => clearInterval(interval);
-  }, [endTime]);
+  }, [endAt, endTime]);
 
   return (
     <div

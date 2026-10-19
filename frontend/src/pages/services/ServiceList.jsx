@@ -189,32 +189,16 @@ const ServiceList = () => {
         </tbody>
       </table>
 
-      {/* Modal - Aquí irá el ServiceForm que crearemos después */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
-            <h2 className="text-xl font-bold mb-4">
-              {selectedService ? "Editar" : "Crear"} Servicio
-            </h2>
-            <div className="p-6 overflow-y-auto flex-1">
-              <ServiceForm
-                initialData={selectedService}
-                onSubmit={handleSaveService}
-                categories={categories}
-                employees={employees}
-                products={allProducts}
-                errors={errors}
-              />
-            </div>
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className="mt-4 text-gray-500 w-full"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
+      <ServiceForm
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        initialData={selectedService}
+        onSubmit={handleSaveService}
+        categories={categories}
+        employees={employees}
+        products={allProducts}
+        errors={errors}
+      />
     </div>
   );
 };

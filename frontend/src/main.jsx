@@ -21,6 +21,7 @@ import ServiceDetail from "./pages/public/ServiceDetail";
 import AppointmentsList from "./pages/appointments/AppointmentsList";
 import BusinessProfileView from "./pages/public/BusinessProfileView";
 import PostView from "./pages/sales/PostView";
+import SettlementsPage from "./pages/settlements/SettlementsPage";
 import CategoriesList from './pages/admin/CategoriesList';
 import BannersList from './pages/admin/BannersList';
 import ContactList from './pages/admin/ContactList';
@@ -57,6 +58,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="/products" element={<ProductList />} />
               <Route path="/appointments" element={<AppointmentsList />} />
               <Route path="/postview" element={<PostView />} />
+              <Route path="/liquidaciones" element={<SettlementsPage />} />
               
               {/* Rutas del Panel Super Admin */}
               <Route path="admin/categories" element={<CategoriesList />} />

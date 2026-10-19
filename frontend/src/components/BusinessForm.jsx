@@ -100,7 +100,7 @@ const BusinessForm = ({
           </label>
           <input
             name="name"
-            value={formData.name}
+            value={formData.name ?? ""}
             disabled={!isEditable}
             onChange={handleChange}
             className={`w-full p-3 border rounded-xl ${!isEditable ? "bg-gray-100 cursor-not-allowed" : ""}`}
@@ -168,7 +168,7 @@ const BusinessForm = ({
           <input
             name="address"
             placeholder="Dirección"
-            value={formData.address}
+            value={formData.address ?? ""}
             onChange={handleChange}
             className="w-full p-3 border rounded-xl"
           />

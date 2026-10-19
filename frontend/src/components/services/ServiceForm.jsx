@@ -1,6 +1,41 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useId } from "react";
+import Modal from "../Modal";
+
+// Construye el estado inicial del formulario a partir de la data recibida.
+const buildInitialData = (initialData) =>
+  initialData
+    ? {
+        ...initialData,
+        name: initialData.name ?? "",
+        description: initialData.description ?? "",
+        image_url: initialData.image_url ?? "",
+        duration_minutes: initialData.duration_minutes ?? "",
+        price: initialData.price ?? "",
+        category_id: initialData.category_id || "",
+        employee_id: initialData.employee_id || "",
+        // Mapeamos los productos existentes para que lean 'quantity_default' del pivot
+        products: initialData.products
+          ? initialData.products.map((p) => ({
+              id: p.id,
+              quantity: p.pivot ? p.pivot.quantity_default : 1,
+            }))
+          : [],
+      }
+    : {
+        name: "",
+        category_id: "",
+        employee_id: "",
+        description: "",
+        image_url: "",
+        duration_minutes: "",
+        price: "",
+        products: [],
+        is_active: true,
+      };
 
 const ServiceForm = ({
+  isOpen,
+  onClose,
   initialData,
   onSubmit,
   products,
@@ -8,46 +43,12 @@ const ServiceForm = ({
   employees,
   errors = {},
 }) => {
-  const [formData, setFormData] = useState(
-    initialData
-      ? {
-          ...initialData,
-          category_id: initialData.category_id || "",
-          employee_id: initialData.employee_id || "",
-          // Mapeamos los productos existentes para que lean 'quantity_default' del pivot
-          products: initialData.products
-            ? initialData.products.map((p) => ({
-                id: p.id,
-                quantity: p.pivot ? p.pivot.quantity_default : 1,
-              }))
-            : [],
-        }
-      : {
-          name: "",
-          category_id: "",
-          employee_id: "",
-          description: "",
-          image_url: "",
-          duration_minutes: "",
-          price: "",
-          products: [],
-          is_active: true,
-        },
-  );
+  const [formData, setFormData] = useState(buildInitialData(initialData));
+  const formId = "service-form-" + useId().replace(/[^a-zA-Z0-9]/g, "");
 
   useEffect(() => {
-    if (initialData) {
-      setFormData({
-        ...initialData,
-        products: initialData.products
-          ? initialData.products.map((p) => ({
-              id: p.id,
-              quantity: p.pivot ? p.pivot.quantity_default : 1,
-            }))
-          : [],
-      });
-    }
-  }, [initialData]);
+    setFormData(buildInitialData(initialData));
+  }, [initialData, isOpen]);
 
   const handleMultiSelectProducts = (e) => {
     const selectedIds = Array.from(
@@ -97,7 +98,16 @@ const ServiceForm = ({
     ) : null;
 
   return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={initialData ? "Editar Servicio" : "Crear Servicio"}
+      formId={formId}
+      submitLabel={initialData ? "Actualizar" : "Crear"}
+      maxWidth="max-w-2xl"
+    >
     <form
+      id={formId}
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit(formData);
@@ -294,14 +304,8 @@ const ServiceForm = ({
           />
         </button>
       </div>
-
-      <button
-        type="submit"
-        className="col-span-2 bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700"
-      >
-        Guardar Servicio
-      </button>
     </form>
+    </Modal>
   );
 };
 

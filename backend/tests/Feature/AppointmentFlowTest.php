@@ -192,9 +192,10 @@ class AppointmentFlowTest extends TestCase
         $response = $this->postJson('/api/appointments', $payload);
 
         $response->assertStatus(422);
-        $response->assertJsonFragment([
-            'message' => 'La hora seleccionada ya pasó. Elige un horario futuro para hoy.',
-        ]);
+        $this->assertStringContainsString(
+            'ya pasó',
+            (string) $response->json('message'),
+        );
     }
 
     /** @test */

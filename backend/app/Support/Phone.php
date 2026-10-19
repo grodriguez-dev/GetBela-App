@@ -24,14 +24,20 @@ class Phone
             return null;
         }
 
-        $digits = preg_replace('/\D+/', '', $value);
+        $raw = trim($value);
+        $digits = preg_replace('/\D+/', '', $raw);
 
         if ($digits === null || $digits === '') {
             return null;
         }
 
-        // Quita el código de país (58) cuando viene incluido.
-        if (str_starts_with($digits, '58') && strlen($digits) > 10) {
+        // Quita el código de país (58) cuando viene incluido. Se decide por la
+        // presencia del "+" (formato internacional) y no solo por la longitud,
+        // para soportar también valores parciales mientras se escribe ("+584").
+        if (str_starts_with($raw, '+') && str_starts_with($digits, '58')) {
+            $digits = substr($digits, 2);
+        } elseif (str_starts_with($digits, '58') && strlen($digits) > 10) {
+            // Formato guardado sin "+" pero con código de país (ej. "584123334567").
             $digits = substr($digits, 2);
         }
 

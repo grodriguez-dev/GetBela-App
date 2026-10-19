@@ -44,13 +44,36 @@ const AppointmentCard = ({ appointment, refreshList }) => {
   // Limpiamos la fecha para que solo muestre Año-Mes-Día (YYYY-MM-DD)
   const cleanDate = appointment.date ? appointment.date.split("T")[0] : "";
 
-  // ¿Ya se alcanzó la hora de finalización aproximada de la cita?
-  const endTimestamp = (() => {
-    if (!appointment.date || !appointment.end_time) return null;
-    const t = new Date(`${cleanDate}T${appointment.end_time}`).getTime();
+  // Instantes exactos que envía el backend (zona del negocio). Así el cálculo es
+  // idéntico en computadora y teléfono, sin depender de la zona del equipo.
+  const toTimestamp = (iso) => {
+    if (!iso) return null;
+    const t = new Date(iso).getTime();
     return Number.isNaN(t) ? null : t;
-  })();
+  };
+
+  const startWindowTimestamp = toTimestamp(appointment.start_window_at);
+  const endTimestamp = toTimestamp(appointment.end_at);
+
+  // ¿Ya se alcanzó la hora de finalización aproximada de la cita?
   const hasEnded = endTimestamp !== null && nowTick >= endTimestamp;
+
+  // Solo se puede iniciar desde 5 minutos antes del inicio. La regla real la
+  // impone el backend (start_window_at); esto solo refleja el mismo instante.
+  const canStart =
+    startWindowTimestamp === null ? true : nowTick >= startWindowTimestamp;
+
+  // Etiqueta local del negocio para la apertura de la ventana (aritmética de
+  // reloj sobre start_time, sin zona horaria). Espeja START_EARLY_MINUTES del backend.
+  const startWindowLabel = (() => {
+    if (!appointment.start_time) return null;
+    const [h, m] = appointment.start_time.split(":").map(Number);
+    if (Number.isNaN(h) || Number.isNaN(m)) return null;
+    const total = (h * 60 + m - 5 + 1440) % 1440;
+    return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(
+      total % 60,
+    ).padStart(2, "0")}`;
+  })();
 
   // Formatea el tiempo extra (en segundos) que duró la cita más allá de su hora
   // de fin programada. Devuelve null cuando no hubo tiempo extra para no mostrar nada.
@@ -172,7 +195,7 @@ const AppointmentCard = ({ appointment, refreshList }) => {
       <div className="flex flex-col items-end justify-between gap-4 w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0">
         
         {appointment.status === 'in_progress' && (
-          <CountdownTimer endTime={appointment.end_time} />
+          <CountdownTimer endAt={appointment.end_at} endTime={appointment.end_time} />
         )}
 
         <div className="flex items-center gap-2 w-full md:w-auto">
@@ -202,21 +225,33 @@ const AppointmentCard = ({ appointment, refreshList }) => {
             </>
           )}
 
-          {/* SI ESTÁ CONFIRMADA: Mostrar Empezar (solo si no venció) y Cancelar */}
+          {/* SI ESTÁ CONFIRMADA: Mostrar Empezar (habilitado solo dentro de su ventana) y Cancelar */}
           {appointment.status === 'confirmed' && (
             <>
-              {!hasEnded && (
-                <button 
-                  onClick={() => handleAction('in_progress')}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
-                >
-                  <Play className="w-3.5 h-3.5" /> Empezar
-                </button>
-              )}
-              {hasEnded && (
+              {hasEnded ? (
                 <span className="text-xs font-bold text-gray-400 px-2 text-right">
                   Hora de finalización alcanzada; no se puede iniciar
                 </span>
+              ) : (
+                <>
+                  <button 
+                    onClick={() => handleAction('in_progress')}
+                    disabled={!canStart}
+                    title={!canStart && startWindowLabel ? `Podrás iniciar a las ${startWindowLabel}` : undefined}
+                    className={`font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                      canStart
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md'
+                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <Play className="w-3.5 h-3.5" /> Empezar
+                  </button>
+                  {!canStart && startWindowLabel && (
+                    <span className="text-xs font-bold text-gray-400 px-2 text-right">
+                      Podrás iniciar a las {startWindowLabel}
+                    </span>
+                  )}
+                </>
               )}
               <button 
                 onClick={() => handleAction('cancelled')}

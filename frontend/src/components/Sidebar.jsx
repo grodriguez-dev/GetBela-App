@@ -48,6 +48,13 @@ const Sidebar = () => {
             <Link to="/dashboard" className="block">
               📊 Dashboard
             </Link>
+
+            {/* Liquidaciones (solo dueño) */}
+            {user?.role === 'owner' && (
+              <Link to="/liquidaciones" className="block text-purple-300">
+                💵 Liquidaciones
+              </Link>
+            )}
             
             {/* Enlaces exclusivos para Super Admin */}
             {user?.role === 'admin' && (
