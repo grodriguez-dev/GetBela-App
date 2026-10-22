@@ -14,11 +14,12 @@ use App\Http\Controllers\PublicHomeController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SettlementController;
+use App\Http\Controllers\admin\AdminDashboardController;
 use App\Http\Controllers\admin\CategoryController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+Route::middleware(['auth:sanctum', 'business.active'])->get('/user', function (Request $request) {
     return $request->user()->load('business');
 });
 
@@ -43,8 +44,10 @@ Route::prefix('public')->group(function () {
     Route::get('/appointments/search', [AppointmentController::class, 'searchByPhone']);
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'business.active'])->group(function () {
     Route::middleware('role:admin')->prefix('admin')->group(function () {
+        Route::get('/dashboard', [AdminDashboardController::class, 'index']);
+        Route::patch('/businesses/{business}/access', [AdminDashboardController::class, 'updateAccess']);
         Route::apiResource('categories', \App\Http\Controllers\admin\CategoryController::class);
         Route::apiResource('banners', \App\Http\Controllers\admin\BannerController::class);
         Route::apiResource('contacts', \App\Http\Controllers\admin\ContactController::class);

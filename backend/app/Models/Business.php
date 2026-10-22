@@ -18,7 +18,15 @@ class Business extends Model
         'phone',
         'address',
         'logo',
-        'description'
+        'description',
+        'is_active',
+        'suspended_at',
+        'suspension_reason',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+        'suspended_at' => 'datetime',
     ];
 
     /**

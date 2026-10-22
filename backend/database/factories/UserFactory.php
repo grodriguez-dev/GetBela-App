@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\Business;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -32,6 +31,7 @@ class UserFactory extends Factory
             'role' => 'owner',
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'business_id' => null,
         ];
     }
 
@@ -42,6 +42,39 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+        ]);
+    }
+
+    /**
+     * Super administrador de la plataforma (sin negocio asociado).
+     */
+    public function admin(): static
+    {
+        return $this->state(fn () => [
+            'role' => 'admin',
+            'business_id' => null,
+        ]);
+    }
+
+    /**
+     * Dueño de un negocio.
+     */
+    public function owner(?int $businessId = null): static
+    {
+        return $this->state(fn () => [
+            'role' => 'owner',
+            'business_id' => $businessId,
+        ]);
+    }
+
+    /**
+     * Empleado con acceso a la plataforma.
+     */
+    public function employee(?int $businessId = null): static
+    {
+        return $this->state(fn () => [
+            'role' => 'employee',
+            'business_id' => $businessId,
         ]);
     }
 }

@@ -17,7 +17,11 @@ class PublicHomeController extends Controller
     {
         // Cargamos la relación con el negocio/estilista y con su categoría
         $query = Service::with(['business', 'category'])
-                        ->where('is_active', true); // Solo servicios activos para el público
+                        ->where('is_active', true) // Solo servicios activos para el público
+                        // Ocultamos los servicios de negocios suspendidos.
+                        ->whereHas('business', function ($b) {
+                            $b->where('is_active', true);
+                        });
 
         // Filtro por categoría (cuando hacen clic en las tarjetas de categoría)
         if ($request->has('category_id') && !empty($request->category_id)) {

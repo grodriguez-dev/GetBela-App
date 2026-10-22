@@ -139,6 +139,14 @@ class AppointmentController extends Controller
 
         $businessId = $request->business_id;
 
+        // No se puede agendar en un negocio suspendido.
+        $business = \App\Models\Business::find($businessId);
+        if (!$business || !$business->is_active) {
+            return response()->json([
+                'message' => 'Este negocio no está disponible para agendar citas en este momento.',
+            ], 422);
+        }
+
         $client = Client::firstOrCreate(
             [
                 'business_id' => $businessId,

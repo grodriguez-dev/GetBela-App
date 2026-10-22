@@ -25,6 +25,7 @@ import SettlementsPage from "./pages/settlements/SettlementsPage";
 import CategoriesList from './pages/admin/CategoriesList';
 import BannersList from './pages/admin/BannersList';
 import ContactList from './pages/admin/ContactList';
+import AdminDashboard from './pages/admin/AdminDashboard';
 import ContactPage from './pages/public/ContactPage';
 import ConsultPage from './pages/public/ConsultPage';
 import Terms from './pages/public/Terms';
@@ -61,6 +62,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="/liquidaciones" element={<SettlementsPage />} />
               
               {/* Rutas del Panel Super Admin */}
+              <Route path="admin" element={<AdminDashboard />} />
               <Route path="admin/categories" element={<CategoriesList />} />
               <Route path="admin/banners" element={<BannersList />} />
               <Route path="admin/contacts" element={<ContactList />} />

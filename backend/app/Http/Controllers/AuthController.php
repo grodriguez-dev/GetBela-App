@@ -73,6 +73,17 @@ class AuthController extends Controller
 
         $user->load('business');
 
+        // Bloqueamos el acceso si el negocio del usuario está suspendido.
+        if (
+            in_array($user->role, ['owner', 'employee'], true)
+            && $user->business
+            && !$user->business->is_active
+        ) {
+            return response()->json([
+                'message' => 'El acceso de este negocio está suspendido. Contacta al administrador de GetBela.',
+            ], 403);
+        }
+
         // 4. Crear el token de acceso usando Sanctum
         // El nombre del token puede ser cualquier string, ej: 'auth_token'
         $token = $user->createToken('auth_token')->plainTextToken;

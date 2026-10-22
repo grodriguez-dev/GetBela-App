@@ -77,8 +77,13 @@ class ServiceController extends Controller
      */
     public function show($id)
     {
-        // Buscamos el servicio incluyendo relaciones como 'business' o 'category'
-        $service = Service::with(['business', 'category', 'products', 'employee'])->findOrFail($id);
+        // Buscamos el servicio incluyendo relaciones como 'business' o 'category'.
+        // Si el negocio está suspendido, el servicio no es visible públicamente.
+        $service = Service::with(['business', 'category', 'products', 'employee'])
+            ->whereHas('business', function ($b) {
+                $b->where('is_active', true);
+            })
+            ->findOrFail($id);
         
         return response()->json([
             'success' => true,

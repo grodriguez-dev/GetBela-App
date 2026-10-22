@@ -23,7 +23,7 @@ class ClientFactory extends Factory
                 ? Business::query()->first()->id
                 : Business::factory()->create()->id,
             'name' => $this->faker->name(),
-            'phone' => $this->faker->e164PhoneNumber(),
+            'phone' => '+58414' . $this->faker->numerify('#######'),
         ];
     }
 }

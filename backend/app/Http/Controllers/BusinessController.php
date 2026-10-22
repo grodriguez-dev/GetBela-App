@@ -17,7 +17,9 @@ class BusinessController extends Controller
         $business = Business::with([
             'services.employee', // Los servicios que ofrece y quién los atiende
             'employees'          // El equipo de trabajo (si es un salón)
-        ])->findOrFail($id);
+        ])
+            ->where('is_active', true) // Un negocio suspendido no se muestra al público.
+            ->findOrFail($id);
 
         return response()->json([
             'business' => $business,

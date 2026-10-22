@@ -25,27 +25,33 @@ class EmployeeFactory extends Factory
                 : Business::factory()->create()->id,
             'user_id' => null,
             'name' => $this->faker->name(),
-            'specialty' => $this->faker->randomElement(['Estilista Principal', 'Manicurista', 'Colorista Expert', 'Barbero']),
+            'specialty' => $this->faker->randomElement([
+                'Estilista Principal',
+                'Manicurista',
+                'Colorista Expert',
+                'Barbero',
+                'Maquilladora',
+                'Esteticista',
+            ]),
+            'phone' => '+58414' . $this->faker->numerify('#######'),
             'commission_percentage' => $this->faker->randomElement([20.00, 30.00, 40.00, 50.00]),
+            'is_active' => true,
         ];
     }
 
     /**
-     * Estado especial: Fuerza al factory a crearle un usuario con rol 'employee'
+     * Crea un usuario con rol 'employee' para este empleado, en el mismo negocio.
      */
     public function withUser(): static
     {
-        return $this->state(function (array $attributes) {
-            // Creamos el usuario amarrado al mismo negocio del empleado
+        return $this->afterCreating(function (Employee $employee) {
             $user = User::factory()->create([
-                'business_id' => $attributes['business_id'] ?? Business::factory(),
-                'name' => $attributes['name'] ?? $this->faker->name(),
+                'business_id' => $employee->business_id,
+                'name' => $employee->name,
                 'role' => 'employee',
             ]);
 
-            return [
-                'user_id' => $user->id,
-            ];
+            $employee->update(['user_id' => $user->id]);
         });
     }
 }

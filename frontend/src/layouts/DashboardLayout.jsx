@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Outlet, Link, useNavigate } from "react-router-dom";
+import { Outlet, Link, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ChevronDown, LogOut, Settings, Bell } from "lucide-react";
 import Sidebar from "../components/Sidebar";
@@ -16,8 +16,12 @@ const DashboardLayout = () => {
   // Accedemos a la relación: user -> business -> campo
   // Usamos el encadenamiento opcional (?.) para evitar errores si el objeto no ha cargado
   const businessId = user?.business?.id;
-  const businessName = user?.business?.name || "Nombre del Negocio";
+  const businessName =
+    user?.role === "admin"
+      ? "GetBela · Super Admin"
+      : user?.business?.name || "Nombre del Negocio";
   const businessLogo = user?.business?.logo; // O el nombre del campo que uses para la ruta de la imagen
+  const location = useLocation();
 
   const fetchNotifications = async () => {
     if (!businessId) return;
@@ -71,6 +75,16 @@ const DashboardLayout = () => {
     }
   };
 
+  // El super admin solo opera dentro del panel /admin.
+  if (user?.role === "admin" && !location.pathname.startsWith("/admin")) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  // Un negocio (owner/employee) no puede entrar al panel de administración.
+  if (user?.role !== "admin" && location.pathname.startsWith("/admin")) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* NAVBAR */}
@@ -78,7 +92,8 @@ const DashboardLayout = () => {
         <div className="font-bold text-xl">{businessName}</div>
 
         <div className="flex items-center space-x-4">
-          {/* 🔔 CAMPANA DE NOTIFICACIONES */}
+          {/* 🔔 CAMPANA DE NOTIFICACIONES (solo owner/employee) */}
+          {user?.role !== "admin" && (
           <div className="relative">
             <button
               onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
@@ -147,6 +162,7 @@ const DashboardLayout = () => {
               </div>
             )}
           </div>
+          )}
 
           <div className="relative">
             <button
@@ -159,7 +175,7 @@ const DashboardLayout = () => {
 
             {dropdownOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg py-2 text-gray-800 z-50">
-                {user?.role !== 'employee' && (
+                {user?.role !== "employee" && user?.role !== "admin" && (
                   <Link
                     to="/configuracion"
                     className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100"

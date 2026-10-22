@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\Business;
 use App\Models\Client;
 use App\Models\Service;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class AppointmentFactory extends Factory
@@ -19,33 +20,74 @@ class AppointmentFactory extends Factory
      */
     public function definition(): array
     {
-        // Generamos una hora aleatoria de inicio (ej: 10:00:00)
-        $startHour = $this->faker->numberBetween(9, 17);
-        $startTime = sprintf('%02d:00:00', $startHour);
+        $business = Business::query()->first() ?? Business::factory()->create();
+
+        $service = Service::query()
+            ->where('business_id', $business->id)
+            ->first()
+            ?? Service::factory()->create(['business_id' => $business->id]);
+
+        $client = Client::query()
+            ->where('business_id', $business->id)
+            ->first()
+            ?? Client::factory()->create(['business_id' => $business->id]);
+
+        // Hora de inicio y fin coherentes con la duración real del servicio.
+        $start = Carbon::createFromTime($this->faker->numberBetween(9, 16), 0, 0);
+        $duration = (int) ($service->duration_minutes ?? 60);
+        $end = $start->copy()->addMinutes($duration);
 
         return [
-            // 🏢 Relación al negocio multi-tenant
-            'business_id' => Business::query()->exists()
-                ? Business::query()->first()->id
-                : Business::factory()->create()->id,
-
-            // 📦 Relación al servicio solicitado
-            'service_id' => Service::query()->exists() ? Service::query()->first()->id : Service::factory()->create()->id,
-
-            // 📅 Formato de fecha consistente (Y-m-d 00:00:00) como maneja tu BD
-            'date' => $this->faker->dateTimeBetween('now', '+1 month')->format('Y-m-d 00:00:00'),
-
-            // 🕒 Horas de inicio y fin limpias en strings
-            'start_time' => $startTime,
-            'end_time' => sprintf('%02d:00:00', $startHour + 1), // Por defecto asume 1 hora de duración
-
-            // 👤 Datos del cliente
-            'client_id' => Client::query()->exists() ? Client::query()->first()->id : Client::factory()->create()->id,
-
-            // ⚙️ Estado por defecto
+            'business_id' => $business->id,
+            'service_id' => $service->id,
+            'client_id' => $client->id,
+            'date' => $this->faker->dateTimeBetween('now', '+1 month')->format('Y-m-d'),
+            'start_time' => $start->format('H:i:s'),
+            'end_time' => $end->format('H:i:s'),
             'status' => 'pending',
-
-            'total_price' => $this->faker->randomFloat(2, 10, 80),
+            'total_price' => $service->price,
         ];
+    }
+
+    /**
+     * Alinea servicio y cliente con el negocio de la cita cuando se
+     * sobrescribe `business_id` al crearla.
+     */
+    public function configure(): static
+    {
+        return $this->afterMaking(function (Appointment $appointment) {
+            $businessId = $appointment->business_id;
+            if (!$businessId) {
+                return;
+            }
+
+            $service = $appointment->service_id
+                ? Service::find($appointment->service_id)
+                : null;
+
+            if (!$service || (int) $service->business_id !== (int) $businessId) {
+                $service = Service::query()
+                    ->where('business_id', $businessId)
+                    ->inRandomOrder()
+                    ->first()
+                    ?? Service::factory()->create(['business_id' => $businessId]);
+
+                $appointment->service_id = $service->id;
+            }
+
+            $client = $appointment->client_id
+                ? Client::find($appointment->client_id)
+                : null;
+
+            if (!$client || (int) $client->business_id !== (int) $businessId) {
+                $client = Client::query()
+                    ->where('business_id', $businessId)
+                    ->inRandomOrder()
+                    ->first()
+                    ?? Client::factory()->create(['business_id' => $businessId]);
+
+                $appointment->client_id = $client->id;
+            }
+        });
     }
 }

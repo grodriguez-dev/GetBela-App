@@ -14,9 +14,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call([
-            CategorySeeder::class,
-            DemoDataSeeder::class,
-        ]);
+        // DemoDataSeeder garantiza las categorías, el super admin y los
+        // negocios de prueba con sus dueños, empleados y servicios.
+        $this->call(DemoDataSeeder::class);
     }
 }
